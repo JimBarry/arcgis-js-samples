@@ -1,0 +1,97 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    
+<!-- 
+***************************************************** 
+Jim Barry jbarry@esri.com 28 March 2019 tw: @JimBarry
+https://github.com/JimBarry/arcgis-basic-geojsonlayer
+*****************************************************
+-->
+    
+    <title>Basic GeoJSONLayer from NYC Open Data site</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/config",
+        "esri/layers/FeatureLayer",
+        "esri/layers/GeoJSONLayer",
+        "esri/renderers/SimpleRenderer",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/widgets/LayerList"
+      ], function(Map, MapView, esriConfig, FeatureLayer, GeoJSONLayer, SimpleRenderer, SimpleLineSymbol, LayerList) {
+        
+        // cross-domain resource for NYC Open Data site
+        esriConfig.request.corsEnabledServers.push("data.cityofnewyork.us");
+
+        // new map with light gray basemap
+        var map = new Map({
+          basemap: "gray"
+        });
+
+        // 2D map view, extent: lower Manhattan
+        var mapView = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 14,
+          center: [-73.99, 40.73] 
+        });
+        
+        // symbol and renderer for the GeoJSON layer
+        var sls = new SimpleLineSymbol({
+          color: "green",
+          width: 5
+        });
+        
+        var sr = new SimpleRenderer({
+          symbol: sls
+        });
+        
+        // NYC bike lanes - this is a GeoJSON file pulled using Socrata's SODA API
+        var gjlBikeLanes = new GeoJSONLayer({
+          url: "https://data.cityofnewyork.us/resource/cc5c-sm6z.geojson?$limit=50000",
+          title: "NYC Bike Lanes - GeoJSON from NYC Open Data site",
+          renderer: sr
+        });
+        map.add(gjlBikeLanes);
+
+        // NYC bike lanes - this is a hosted feature layer on ArcGIS Online
+        var flBikeLanes = new FeatureLayer({
+          url: "https://services1.arcgis.com/1vWZ00DKS28MdI5r/arcgis/rest/services/NYC_Bike_Lanes/FeatureServer"
+        });
+        map.add(flBikeLanes);
+        
+        // layer list widget - so that user can toggle layer visibility
+        mapView.when(function() {
+          var layerList = new LayerList({
+            view: mapView
+          });
+          mapView.ui.add(layerList, "top-right");
+        });  
+        
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
+
