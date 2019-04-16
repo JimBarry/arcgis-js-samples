@@ -1,0 +1,99 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    
+<!-- 
+***************************************************** 
+Jim Barry jbarry@esri.com 28 March 2019 tw: @JimBarry
+https://github.com/JimBarry/arcgis-basic-geojsonlayer
+*****************************************************
+-->
+    
+    <title>GeoJSONLayer from filter query of NYC Open Data</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/config",
+        "esri/layers/GeoJSONLayer",
+        "esri/renderers/SimpleRenderer",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/widgets/LayerList"
+      ], function(Map, MapView, esriConfig, GeoJSONLayer, SimpleRenderer, SimpleMarkerSymbol, LayerList) {
+        
+        // cross-domain resource for NYC Open Data site
+        esriConfig.request.corsEnabledServers.push("data.cityofnewyork.us");
+
+        // new map with light gray basemap
+        var map = new Map({
+          basemap: "gray"
+        });
+
+        // 2D map view, extent: lower Manhattan
+        var mapView = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 14,
+          center: [-73.99, 40.73] 
+        });
+        
+        // symbol and renderer for the GeoJSON layer
+        var sms = new SimpleMarkerSymbol({
+          style: "circle",
+          color: "red",
+          outline: {width: 0},
+          size: 4
+        });
+        var sr = new SimpleRenderer({
+          symbol: sms
+        });
+        
+        // NYC motor vehicle collisions that involved bikes
+        // --this is GeoJSON data using Socrata's SODA API and SoQL query/filter parameters
+        var gjlBikeCollisions = new GeoJSONLayer({
+          url: "https://data.cityofnewyork.us/resource/qiz3-axqb.geojson?$where=(borough = 'MANHATTAN' AND (number_of_cyclist_injured > 0 OR number_of_cyclist_killed > 0) AND date > '2014-04-16')&$limit=50000",
+          title: "NYC Bike Collisions",
+          renderer: sr
+        });
+        map.add(gjlBikeCollisions);
+        
+        // layer list widget - so that user can toggle layer visibility
+        mapView.when(function() {
+          var layerList = new LayerList({
+            view: mapView
+          });
+          mapView.ui.add(layerList, "top-right");
+        });  
+        
+        // TEST - count the number of features; send to console
+        gjlBikeCollisions.queryFeatureCount().then(function(numFeatures){
+          console.log(numFeatures);
+        });
+        
+      });
+      
+      //
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
+
