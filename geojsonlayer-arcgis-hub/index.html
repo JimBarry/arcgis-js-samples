@@ -1,0 +1,97 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    
+<!-- 
+***************************************************** 
+Jim Barry jbarry@esri.com 28 March 2019 tw: @JimBarry
+https://github.com/JimBarry/arcgis-basic-geojsonlayer
+*****************************************************
+-->
+    
+    <title>Basic GeoJSONLayer from ArcGIS Hub Open Data site</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/layers/GeoJSONLayer",
+        "esri/renderers/UniqueValueRenderer",
+        "esri/symbols/SimpleFillSymbol",
+        "esri/widgets/LayerList"
+      ], function(Map, MapView, FeatureLayer, GeoJSONLayer, 
+                  UniqueValueRenderer, SimpleFillSymbol, LayerList) {
+
+        // new map with light gray basemap
+        var map = new Map({
+          basemap: "gray"
+        });
+
+        // 2D map view, extent: lower Manhattan
+        var mapView = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 14,
+          center: [-73.99, 40.73] 
+        });
+
+        // render the layers based on permitted cafe type
+        const uvrSidewalkCafes = new UniqueValueRenderer({
+          field: "cafe_type",
+          uniqueValueInfos: [
+            {value: "All Cafes", symbol: {type: "simple-line", color: "green"}},
+            {value: "Small Only", symbol: {type: "simple-line", color: "blue"}},
+            {value: "Unenclosed Only", symbol: {type: "simple-line", color: "#fec44f"}},
+            {value: "Not Permitted", symbol: {type: "simple-line", color: "red"}}
+          ]
+        });
+
+        // the URL below is a GeoJSON layer stored on ArcGIS Open Data
+        var gjlSidewalkCafes = new GeoJSONLayer({
+          url: "https://opendata.arcgis.com/datasets/389f450340934521bfa9b493ceeef21a_0.geojson",
+          title: "NYC Sidewalk Cafes - GeoJSON from ArcGIS Hub Open Data site",
+          renderer: uvrSidewalkCafes
+        });
+        map.add(gjlSidewalkCafes);
+
+        // the URL below is a Hosted Feature Layer stored on ArcGIS Online
+        var flSidewalkCafes = new FeatureLayer({
+          url: "https://services6.arcgis.com/0p6i4J6xhQas4Unf/arcgis/rest/services/NYC_Sidewalk_Cafe/FeatureServer/0/",
+          title: "NYC Sidewalk Cafes - Hosted Feature Layer from ArcGIS Hub Open Data site",
+          renderer: uvrSidewalkCafes
+        });
+        map.add(flSidewalkCafes);
+        
+        // layer list widget - so that user can toggle layer visibility
+        mapView.when(function() {
+          var layerList = new LayerList({
+            view: mapView
+          });
+          mapView.ui.add(layerList, "top-right");
+        });  
+        
+      });
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
+
