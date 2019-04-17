@@ -10,7 +10,7 @@ https://github.com/JimBarry/arcgis-basic-geojsonlayer
 *****************************************************
 -->
     
-    <title>GeoJSONLayer from filter query of NYC Open Data</title>
+    <title>Basic GeoJSONLayer using SODA and SoQL v2 w/Heatmap</title>
 
     <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
     <script src="https://js.arcgis.com/4.11/"></script>
@@ -31,11 +31,13 @@ https://github.com/JimBarry/arcgis-basic-geojsonlayer
         "esri/Map",
         "esri/views/MapView",
         "esri/config",
+        "esri/layers/FeatureLayer",
         "esri/layers/GeoJSONLayer",
+        "esri/renderers/HeatmapRenderer",
         "esri/renderers/SimpleRenderer",
         "esri/symbols/SimpleMarkerSymbol",
         "esri/widgets/LayerList"
-      ], function(Map, MapView, esriConfig, GeoJSONLayer, SimpleRenderer, SimpleMarkerSymbol, LayerList) {
+      ], function(Map, MapView, esriConfig, FeatureLayer, GeoJSONLayer, HeatmapRenderer, SimpleRenderer, SimpleMarkerSymbol, LayerList) {
         
         // cross-domain resource for NYC Open Data site
         esriConfig.request.corsEnabledServers.push("data.cityofnewyork.us");
@@ -49,29 +51,48 @@ https://github.com/JimBarry/arcgis-basic-geojsonlayer
         var mapView = new MapView({
           container: "viewDiv",
           map: map,
-          zoom: 14,
-          center: [-73.99, 40.73] 
+          zoom: 15,
+          center: [-73.994, 40.715] 
         });
         
-        // symbol and renderer for the GeoJSON layer
+        // single-symbol SimpleRenderer (uncomment the layer's "renderer" property, line 85 below)
         var sms = new SimpleMarkerSymbol({
           style: "circle",
           color: "red",
           outline: {width: 0},
-          size: 4
+          size: 6
         });
         var sr = new SimpleRenderer({
           symbol: sms
+        });
+        
+        // HeatmapRenderer (uncomment the layer's "renderer" property, line 86 below)
+        var hmr = new HeatmapRenderer({
+          colorStops: [
+                        { ratio: 0, color: "rgba(255, 140, 0, 0)" },
+                        { ratio: 0.75, color: "rgba(255, 140, 0, 1)" },
+                        { ratio: 0.9, color: "rgba(255, 0, 0, 1)" }
+                      ],
+          minPixelIntensity: 0,
+          maxPixelIntensity: 20
         });
         
         // NYC motor vehicle collisions that involved bikes
         // --this is GeoJSON data using Socrata's SODA API and SoQL query/filter parameters
         var gjlBikeCollisions = new GeoJSONLayer({
           url: "https://data.cityofnewyork.us/resource/qiz3-axqb.geojson?$where=(borough = 'MANHATTAN' AND (number_of_cyclist_injured > 0 OR number_of_cyclist_killed > 0) AND date > '2014-04-16')&$limit=50000",
-          title: "NYC Bike Collisions",
-          renderer: sr
+          title: "NYC Motor Vehicle Collisions involving Bikes",
+          //renderer: sr     //SIMPLE SINGLE-SYMBOL RENDERER
+          renderer: hmr  //HEATMAP RENDERER
         });
         map.add(gjlBikeCollisions);
+        
+        // layer of bike lanes
+        var flBikeLanes = new FeatureLayer({
+          url: "https://services1.arcgis.com/1vWZ00DKS28MdI5r/arcgis/rest/services/NYC_Bike_Lanes/FeatureServer",
+          title: "NYC Bike Lanes"
+        });
+        map.add(flBikeLanes);
         
         // layer list widget - so that user can toggle layer visibility
         mapView.when(function() {
@@ -96,4 +117,5 @@ https://github.com/JimBarry/arcgis-basic-geojsonlayer
     <div id="viewDiv"></div>
   </body>
 </html>
+
 
