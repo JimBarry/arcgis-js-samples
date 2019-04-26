@@ -1,0 +1,94 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Intro to FeatureLayer - 4.11</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      
+      
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer"
+      ], function(Map, MapView, FeatureLayer) {
+
+        // REST endpoint of hosted feature layer
+        const urlHFL = 'https://services1.arcgis.com/1vWZ00DKS28MdI5r/arcgis/rest/services/fieldcalctest/FeatureServer';     
+        
+        //
+        var map = new Map({
+          basemap: "gray"
+        });
+        // 
+        var mapView = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 11,
+          center: [-73.992, 40.736] 
+        });
+        
+        // nyc boro points
+        var flBoros = new FeatureLayer({
+          url: urlHFL
+        });
+        map.add(flBoros);
+        
+        // Get the screen point from the view's click event
+        mapView.on("click", function (event) {
+
+          // use hitTest method with that screen point to return
+          // layer features that are under the mouse click
+          mapView.hitTest(event).then(function (response) {
+            
+            // check first to see if anything was clicked
+            if (response.results.length > 0) {
+              
+              // filter the results so that the array of graphics only includes 
+              // those in the layer of interest
+              var graphics = response.results.filter(function (result) {
+                return result.graphic.layer === flBoros;
+              });
+              
+              // get the first graphic from that aray
+              var graphic = graphics[0].graphic;
+              
+              // pull the feature geometry out of the graphic
+              var ptClicked = graphic.geometry;
+              console.log('Long: ' + ptClicked.longitude);
+              console.log('Lat: ' + ptClicked.latitude);
+              
+              // Option 1
+              // reset the center of the mapview to the Lat/Long of the clicked on point
+              //mapView.center = [ptClicked.longitude, ptClicked.latitude];
+              
+              // Option 2
+              // reset the center of the mapview to the clicked on point
+              mapView.center = ptClicked;
+
+            } // end if hitTest results > 0
+          }); // end mapView.hitTest()
+        });   // end mapView.on()
+        
+      });     // end of require
+    </script>
+  </head>
+
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
