@@ -1,0 +1,252 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Add Delete Update Features v2</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      
+      
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "esri/Graphic",
+        "esri/geometry/Point",
+        "esri/widgets/CoordinateConversion",
+        "dojo/dom",
+        "dojo/on",  
+        "dojo/query",      
+        ], function(Map, MapView, FeatureLayer, Graphic, Point, CoordinateConversion, dom, on, query) {
+
+        // REST endpoint of hosted feature layer
+        const urlHFL = 'https://services1.arcgis.com/1vWZ00DKS28MdI5r/arcgis/rest/services/fieldcalctest3/FeatureServer';  
+        
+        // Initialize Yes/No value
+        var yesno = "Y";
+        
+        // create map, set basemap
+        var map = new Map({
+          basemap: "gray"
+        });
+
+        // create mapview, bind to map, set extent, draw in div
+        var mapView = new MapView({
+          map: map,
+          zoom: 11,
+          center: [-73.992, 40.736], 
+          container: "viewDiv"
+        });
+
+        var ccWidget = new CoordinateConversion({
+          view: mapView
+        });
+        mapView.ui.add(ccWidget, "bottom-left");   
+
+        // add featurelayer: nyc boro points
+        var flBoros = new FeatureLayer({
+          url: urlHFL
+        });
+        map.add(flBoros);
+
+        
+        function addFeature() {
+          
+          // shape of new point feature to add
+          var ptNew = new Point({
+            longitude: -74.06,
+            latitude: 40.71
+          });
+
+          // attributes for new point feature to add
+          var attribsNew = {
+            myid: 5,
+            name: "NJ",
+            valueint: 6,
+            valuestr: "F",
+            yesorno: "Y"
+          };
+          
+          // new Graphic object, made from shape and attributes
+          var featureToAdd = new Graphic({
+            geometry: ptNew,
+            attributes: attribsNew
+          });
+
+          // edits to apply, using 'addFeatures' parameter
+          var edits = {
+            addFeatures: [featureToAdd]
+          }
+          
+          // write edits to the layer, returns a promise
+          var prom = flBoros.applyEdits(edits);
+
+          // when promise returns, examine the results of the edit
+          prom.then(function(editsResult) {
+            var numAdded = editsResult.addFeatureResults.length;
+            if (numAdded > 0) {
+              console.log('OID of added feature: ' + editsResult.addFeatureResults[0].objectId);
+            } else {
+              console.log('Editing error name: ' + editsResult.error.name);
+              console.log('Editing error message: ' + editsResult.error.message);
+            }          
+          });
+        } // end of function: addFeature() 
+
+        function deleteFeature() {
+
+          // feature you want to delete, by OID
+          var featureToDelete = {
+            objectId: [46]
+          };
+ 
+          // edits to apply, using the 'deleteFeatures' parameter
+          var edits = {
+            deleteFeatures: [featureToDelete]
+          }
+
+          // write edits to the layer, returns a promise
+          var prom = flBoros.applyEdits(edits);
+
+          // when promise returns, examine the results of the edit
+          prom.then(function (editsResult) {
+            var numDeleted = editsResult.deleteFeatureResults.length;
+            console.log('length of deletedFeatureResults: ' + numDeleted);
+            if (numDeleted > 0) {
+              console.log('OID of deleted feature: ' + editsResult.deleteFeatureResults[0].objectId);
+            } else {
+              console.log('Editing error name: ' + editsResult.error.name);
+              console.log('Editing error message: ' + editsResult.error.message);
+            }
+          });
+        } // end of function: deleteFeature()
+
+        function updateFeature() {
+          
+          // INCLUDE THIS ONLY IF YOU WANT TO MOVE THE FEATURE
+          // shape of new point feature to add
+          //var ptToUpdate = new Point({
+          //  longitude: -73.99071,
+          //  latitude: 40.73613
+          //});
+          
+          // TEST ONLY, TOGGLE THE Y/N VALUE
+          yesno = (yesno == "Y") ? "N" : "Y";
+         
+          // YOU ONLY NEED TO INCLUDE THOSE FIELDS YOU WANT TO EDIT, BUT
+          // YOU MUST INCLUDE THE objectId FIELD SO THAT THE CORRECT FIELD IS EDITED
+          // attributes for new point feature to add
+          var attribsToUpdate = {
+            objectId: 1,
+            yesorno: yesno
+          };
+          
+          // new Graphic object, made from shape and attributes
+          var featureToUpdate = new Graphic({
+            //geometry: ptToUpdate,
+            attributes: attribsToUpdate
+          });
+
+          // edits to apply, using 'addFeatures' parameter
+          var edits = {
+            updateFeatures: [featureToUpdate]
+          }
+          
+          // write edits to the layer, returns a promise
+          var prom = flBoros.applyEdits(edits);
+
+          // when promise returns, examine the results of the edit
+          prom.then(function(editsResult) {
+            var numAdded = editsResult.updateFeatureResults.length;
+            if (numAdded > 0) {
+              console.log('OID of updated feature: ' + editsResult.updateFeatureResults[0].objectId);
+            } else {
+              console.log('Editing error name: ' + editsResult.error.name);
+              console.log('Editing error message: ' + editsResult.error.message);
+            }          
+          });
+        } // end of function: updateFeature()
+        
+
+        // Get the screen point from the view's click event
+        mapView.on("click", function (event) {
+
+          // use hitTest method with that screen point to return
+          // layer features that are under the mouse click
+          mapView.hitTest(event).then(function (response) {
+            
+            // check first to see if anything was clicked
+            if (response.results.length > 0) {
+              
+              // filter the results so that the array of graphics only includes 
+              // those in the layer of interest
+              var graphics = response.results.filter(function (result) {
+                return result.graphic.layer === flBoros;
+              });
+              
+              // get the first graphic from that aray
+              var graphic = graphics[0].graphic;
+              
+              // pull the feature geometry out of the graphic
+              var ptClicked = graphic.geometry;
+              console.log('Long: ' + ptClicked.longitude);
+              console.log('Lat: ' + ptClicked.latitude);
+
+              console.log('OID field: ' + flBoros.objectIdField);
+              
+              
+            } // end if hitTest results > 0
+          }); // end mapView.hitTest()
+        });   // end mapView.on()
+
+
+        function popAlert() {
+          alert('hi');
+        } // end of function: popAlert()
+
+
+        // create button objects for the button elements
+        mapView.when(function(){
+          var btn1 = query("#btnAddFeature")[0];
+          var btn2 = query("#btnDeleteFeature")[0];
+          var btn3 = query("#btnUpdateFeature")[0];
+        })
+
+        mapView.when(function() {
+          on(dom.byId("btnAddFeature"), "click", addFeature);
+        });   
+        mapView.when(function() {
+          on(dom.byId("btnDeleteFeature"), "click", deleteFeature);
+        });   
+        mapView.when(function() {
+          on(dom.byId("btnUpdateFeature"), "click", updateFeature);
+        });   
+        
+
+      }); // end of require
+    </script>
+  </head>
+
+  <body>
+    <!-- setup buttons for editing features in the map -->
+    <button class="btn" id="btnAddFeature">Add feature</button>  
+    <button class="btn" id="btnDeleteFeature">Delete feature</button>  
+    <button class="btn" id="btnUpdateFeature">Update feature</button>  
+
+    <div id="viewDiv"></div>
+  </body>
+</html>
