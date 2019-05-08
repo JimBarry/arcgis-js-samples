@@ -1,0 +1,113 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Basic Graphics 3x with Webmap and Mouse Events v5</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.28/esri/css/esri.css">
+    <style>
+      html, body, #mapdiv {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script src="https://js.arcgis.com/3.28/"></script>
+    <script>
+
+      require([
+        "esri/map",
+        "esri/arcgis/utils",
+        "esri/layers/GraphicsLayer",
+        "esri/graphic",
+        "esri/geometry/Point",
+        "esri/geometry/Polyline",
+        "esri/geometry/Polygon",
+        "esri/symbols/SimpleMarkerSymbol",
+        "esri/symbols/SimpleLineSymbol",
+        "esri/symbols/SimpleFillSymbol",
+        "esri/Color",
+        "dojo/domReady!"
+        ], function(Map, arcgisUtils, GraphicsLayer, Graphic, Point, Polyline, Polygon, SimpleMarkerSymbol, SimpleLineSymbol, SimpleFillSymbol, Color) {
+        
+        var map;
+        var gLayer;
+        var colRed = new Color([255,0,0,0.5]);
+        
+        function addGraphics() {
+          
+          gLayer = new GraphicsLayer();
+          map.addLayer(gLayer);
+
+          // create shapes
+          var pt1 = new Point({
+            x: -74.01, y: 40.74
+          });
+          var pl1 = new Polyline({
+            paths: [[[-74.01,40.66], [-73.96,40.74], [-73.99,40.81]]]
+          });
+          var pg1 = new Polygon({
+            rings: [[[-73.94,40.66], [-73.92,40.81], [-73.89,40.74], [-73.94,40.66]]] 
+          });
+
+          // create symbols (style property works best with "set~" method)
+          var sms = new SimpleMarkerSymbol({size: 12, color: colRed});
+          sms.setStyle(SimpleMarkerSymbol.STYLE_SQUARE);
+
+          var sls = new SimpleLineSymbol({width: 4, color: colRed});
+          sls.setStyle(SimpleLineSymbol.STYLE_SOLID);
+          
+          var sfs = new SimpleFillSymbol({outline: sls, color: colRed});
+          sfs.setStyle(SimpleFillSymbol.STYLE_SOLID);
+
+          // create graphics
+          var gpt = new Graphic(); 
+          gpt.setGeometry(pt1);
+          gpt.setSymbol(sms);
+          var gpl = new Graphic();
+          gpl.setGeometry(pl1);
+          gpl.setSymbol(sls);
+          var gpg = new Graphic();
+          gpg.setGeometry(pg1);
+          gpg.setSymbol(sfs);
+
+          // add graphics to the map
+          gLayer.add(gpt);
+          gLayer.add(gpl);
+          gLayer.add(gpg);   
+          
+        } // end of function: addGraphics()
+        
+        function mouseEventMessage(action) {
+          console.log('mouse-' + action + ' on a graphic');
+        }
+        
+        function enableMouseEvents() {
+          // enable mouse events  
+          gLayer.enableMouseEvents();
+          // create mouse event listeners - OPEN AND WATCH THE CONSOLE
+          gLayer.on("mouse-down", function(){mouseEventMessage("down")});
+          gLayer.on("mouse-up",   function(){mouseEventMessage("up")  });
+          gLayer.on("mouse-over", function(){mouseEventMessage("over")});  
+          gLayer.on("mouse-out",  function(){mouseEventMessage("out") });           
+        } // end of function: enableMouseEvents()
+                
+        arcgisUtils.createMap("1e03466afd834509a19cb94cf99b83a2", "mapdiv")
+          .then(function (response) {
+            map = response.map;
+            addGraphics();
+            enableMouseEvents();
+        });
+        
+        
+        
+      }); // end of require
+    </script>
+  </head>
+
+  <body>
+    <div id="mapdiv"></div>
+  </body>
+</html>
+
+
