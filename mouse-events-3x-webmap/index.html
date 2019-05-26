@@ -1,0 +1,107 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>mouse-hover-time-webmap-3x</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.28/esri/css/esri.css">
+    <style>
+      html, body, #mapdiv {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script src="https://js.arcgis.com/3.28/"></script>
+    <script>
+      
+      require([
+        //"esri/map", // technically don't even need this module
+        "esri/arcgis/utils",
+        "esri/geometry/Point",
+        "esri/Color",
+        "esri/graphic",
+        "esri/layers/GraphicsLayer",
+        "esri/symbols/TextSymbol",
+        "esri/geometry/webMercatorUtils",
+        "dojo/domReady!"
+        ], function(arcgisUtils, Point, Color, Graphic, GraphicsLayer, TextSymbol, webMercatorUtils) {
+
+        var map;
+        var flTrains;
+        var grTimeStamp = new Graphic();
+        var grMapCenter = new Graphic();
+        var glTimeStamp = new GraphicsLayer();
+
+        // convert unix timestamp into a readable date/time stamp
+        function convert(strUnixTimeStamp){
+          strUnixTimeStamp = strUnixTimeStamp / 1000;
+          var months_arr = ['Jan','Feb','Mar','Apr','May','Jun',
+                            'Jul','Aug','Sep','Oct','Nov','Dec'];
+          var date = new Date(strUnixTimeStamp*1000);
+          var year = date.getFullYear();
+          var month = months_arr[date.getMonth()];
+          var day = date.getDate();
+          var hours = date.getHours();
+          var minutes = "0" + date.getMinutes();
+          var seconds = "0" + date.getSeconds();
+          var convdataTime = month+'-'+day+'-'+year+' '+hours+':'+
+                             minutes.substr(-2)+':'+seconds.substr(-2);
+          return convdataTime;       
+        }
+
+        function drawTimeStamp(evt) {
+          // get train attributes
+          var attrs = evt.graphic.attributes;
+          var oid = evt.graphic.attributes["OBJECTID"];
+          var strName = evt.graphic.attributes["name"];
+          var strTime = convert(evt.graphic.attributes["last_update_date"]);
+          // create train status label string
+          var strLabel = "Last Map Update: "+strTime+" id-"+oid+" "+strName;
+          // create textsymbol for the train status label
+          var tsTimeStamp = new TextSymbol({
+            text: strLabel,
+            color: new Color("red"),
+            horizontalAlignment: "left",
+            verticalAlignment: "bottom"
+          }); 
+          // create insert point for the train status label
+          var ptWM = new Point();
+          var wid = map.extent.xmax - map.extent.xmin; //because .width isn't available
+          var hei = map.extent.ymax - map.extent.ymin; //because .height isn't available
+          ptWM.x = map.extent.xmin + (wid * 0.1);
+          ptWM.y = map.extent.ymin + (hei * 0.8);
+          // reset timestamp graphic properties
+          var ptDD = webMercatorUtils.webMercatorToGeographic(ptWM);
+          grTimeStamp.setGeometry(ptDD);
+          grTimeStamp.setSymbol(tsTimeStamp);
+        }
+
+        function clearTimeStamp() {
+           // clear out train status label
+          grTimeStamp.setGeometry(new Point({x: 0, y: 0}));
+          grTimeStamp.setSymbol(new TextSymbol());
+        }
+
+        arcgisUtils.createMap("afe843be993e4708a828b7e48c078c9d", "mapdiv").then(function (response) {
+          // object variable for the map
+          map = response.map;
+          // initialize graphics
+          glTimeStamp.add(grTimeStamp);
+          glTimeStamp.add(grMapCenter);
+          map.addLayer(glTimeStamp);
+          // setup mouse events for trains layer
+          flTrains = map.getLayer('trains_and_timestamps1_4203')
+          flTrains.enableMouseEvents();
+          flTrains.on("mouse-move", function(evt) {drawTimeStamp(evt);}); 
+          flTrains.on("mouse-out", function() {clearTimeStamp();});  
+        });
+        
+      }); // end of require
+    </script>
+  </head>
+
+  <body>
+    <div id="mapdiv"></div>
+  </body>
+</html>
+ 
