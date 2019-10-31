@@ -1,0 +1,126 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Basic Basemap Only 3x v1</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.28/esri/css/esri.css">
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <script src="https://js.arcgis.com/3.28/"></script>
+    <script>
+
+      require(["esri/map",
+               "esri/geometry/Point",
+               "esri/symbols/SimpleMarkerSymbol",
+               "esri/graphic", 
+               "esri/Color",
+               "esri/SpatialReference",
+               "dojo/dom", 
+               "dojo/on", 
+               "dojo/domReady!"
+               ], function(
+              Map, Point, SimpleMarkerSymbol, Graphic, Color, SpatialReference, dom, on
+              ) {
+        
+        
+        // GLOBALS
+        
+        var arraySelectedGraphics = [];
+        
+        var smsSelected = new SimpleMarkerSymbol();
+        smsSelected.setStyle(SimpleMarkerSymbol.STYLE_CIRCLE);
+        smsSelected.setSize(16);
+        smsSelected.setColor(new Color([255,0,0,0.5]));
+        
+        
+        // MAP
+        
+        const map = new Map("map", {
+          basemap: "gray",  
+          center: [-73.95, 40.73], 
+          zoom: 11
+        });
+ 
+        
+        // FUNCTIONS
+        
+        function drawGraphics() {
+          var smsBoros = new SimpleMarkerSymbol();
+          smsBoros.setStyle(SimpleMarkerSymbol.STYLE_CIRCLE);
+          smsBoros.setSize(16);
+          smsBoros.setColor(new Color([255,0,0,0.5]));
+          var ptMN = new Point(-73.97, 40.76);
+          var ptBK = new Point(-73.95, 40.63);
+          var ptQU = new Point(-73.82, 40.73);
+          var ptBX = new Point(-73.87, 40.86);
+          var ptSI = new Point(-74.14, 40.58);
+          var grMN = new Graphic(ptMN, smsBoros);        
+          var grBK = new Graphic(ptBK, smsBoros);        
+          var grQU = new Graphic(ptQU, smsBoros);        
+          var grBX = new Graphic(ptBX, smsBoros);        
+          var grSI = new Graphic(ptSI, smsBoros);   
+          map.graphics.add(grMN);
+          map.graphics.add(grBK);
+          map.graphics.add(grQU);
+          map.graphics.add(grBX);
+          map.graphics.add(grSI);
+        }
+        
+        // as mouse events fire, print them to the console
+        function consoleMouseAction(msg) {
+          console.log('mouse-' + msg + ' on a graphic');
+        }
+        
+        function clearSelection() {
+          var i;
+          for (i=arraySelectedGraphics.length-1 ;i>=0 ;i--) {
+            map.graphics.remove(arraySelectedGraphics[i]);
+          }
+        }
+
+        //EVENTS
+        
+        map.on("load", function() {
+          drawGraphics();
+          // enable mouse events  
+          map.graphics.enableMouseEvents();
+          // create mouse event listeners - OPEN AND WATCH THE CONSOLE
+          map.graphics.on("mouse-down", function() {
+            consoleMouseAction("down"); 
+          });
+          map.graphics.on("mouse-up", function() {
+            consoleMouseAction("up");
+          });
+          map.graphics.on("mouse-over", function() {
+            consoleMouseAction("over");
+          });  
+          map.graphics.on("mouse-out", function() {
+            consoleMouseAction("out");
+          });          
+          map.graphics.on("click", function(evt) {
+            console.log(evt.graphic.geometry.x);            
+          });
+          on(dom.byId("btnClearSelection"), "click", callAlert);
+
+        });  
+        
+        
+        
+      }); // end of require
+    </script>
+  </head>
+
+  <body>
+    <div>
+      <input type="radio" name="gender" value="point" checked="true"> Select by clicking a point<br>
+      <input type="radio" name="gender" value="polygon"> Select by drawing a polygon<br>   
+      <button class="btn" id="btnClearSelection">Clear Selection</button>
+    </div>
+    <div id="map"></div>
+  </body>
+</html>
