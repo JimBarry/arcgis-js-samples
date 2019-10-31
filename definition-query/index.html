@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Dojo MultiSelect Dijit with ArcGIS JS API v2</title>
+    
+    
+    <link rel="stylesheet" href="https://js.arcgis.com/4.11/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.11/"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #bannerDiv {
+        width: 100%;
+        height: 150px;
+        background-color: #FFCCCC;
+        text-align: center;
+        padding: 5px;
+      }
+      #viewDiv {
+        position: absolute;
+        width: 100%;
+        height: calc(100% - 160px);
+      }
+    </style>
+
+    <script>
+      require([
+        "esri/Map",
+        "esri/views/MapView",
+        "esri/layers/FeatureLayer",
+        "dijit/form/MultiSelect",
+        "dojo/dom",
+        "dojo/on"  
+      ], function(Map, MapView, FeatureLayer, MultiSelect, dom, on) {
+      
+        //
+        var map = new Map({
+          basemap: "gray"
+        });
+        
+        // 
+        var mapView = new MapView({
+          container: "viewDiv",
+          map: map,
+          zoom: 10,
+          center: [-73.95, 40.73] 
+        });
+        
+        var flBoros = new FeatureLayer({
+          url: "https://services6.arcgis.com/0p6i4J6xhQas4Unf/arcgis/rest/services/NYC_Community_Districts/FeatureServer"
+        });
+        map.add(flBoros);
+        
+        
+        function applyQueryDef() {
+
+          const selected = document.querySelectorAll('#boros option:checked');
+          const values = Array.from(selected).map(el => el.value);
+
+          var strQueryDef = "";
+
+          if (values.length === 1) {
+            strQueryDef = "boroname = '" + values[0] + "'";
+            flBoros.definitionExpression = strQueryDef;
+          }
+          if (values.length > 1) {
+            strQueryDef = "boroname = '" + values[0] + "'";
+            for (i=1; i<values.length; i++) {
+              strQueryDef = strQueryDef + " OR boroname = '" + values[i] + "'";
+            }
+            flBoros.definitionExpression = strQueryDef;
+          }
+        
+        } // end of function applyQueryDef()
+
+        function clearQueryDef() {
+
+          var elemMultiSelect = dom.byId("boros");
+
+          for (i=0; i<elemMultiSelect.length; i++) {
+            elemMultiSelect[i].selected = false;
+          }
+
+          flBoros.definitionExpression = "";
+
+        } // end of function clearQueryDef()
+
+      // BUTTON CLICK EVENTS
+          
+        on(dom.byId("btnApplyQueryDef"), "click", applyQueryDef);
+        on(dom.byId("btnClearQueryDef"), "click", clearQueryDef);
+    
+      }); //end of require
+    </script>
+  </head>
+
+  <body>
+    
+    <div id="bannerDiv">
+      <h4>How to use a multiselect box with ArcGIS</h4>
+      <select data-dojo-type="dijit/form/MultiSelect" 
+              multiple="true" style="height:80px;width:100px" 
+              id="boros" name="boros" size="4">
+        <option value="Manhattan">Manhattan</option>
+        <option value="Bronx">Bronx</option>
+        <option value="Brooklyn">Brooklyn</option>
+        <option value="Queens">Queens</option>        
+        <option value="Staten Island">Staten Island</option>
+      </select>      
+      <button class="btn" id="btnApplyQueryDef">Select Boros</button>
+      <button class="btn" id="btnClearQueryDef">Draw All Boros</button>
+
+    </div>
+  
+    <div id="viewDiv"></div>
+      
+  </body>
+
+</html>
