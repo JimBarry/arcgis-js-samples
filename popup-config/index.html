@@ -1,0 +1,149 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Providers Map</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.13/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.13/"></script>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/Graphic",
+      "esri/geometry/Point",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/layers/GraphicsLayer",
+      "esri/PopupTemplate",
+      "esri/request"
+
+    ], function(Map, MapView, Graphic, Point, SimpleMarkerSymbol, GraphicsLayer, PopupTemplate, esriRequest) { 
+      
+      //var strUrl = "https://api.myjson.com/bins/1e5gna";
+      var strUrl = "https://jimbarry.github.io/json-files/providers.json";
+
+      // create map
+      var map = new Map({
+        basemap: "gray"
+      });
+
+      // create 2D mapview for the map, set extent, zoom, and draw into div
+      var mapView = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 12,
+        center: [-75.14,40.01] // longitude, latitude
+      });
+
+      // marker symbol, default properties      
+      var smsProvider = new SimpleMarkerSymbol();
+
+      // graphics layer to draw providers on
+      var glyrProviders = new GraphicsLayer();
+      map.add(glyrProviders);
+
+      function formatPhoneNumber(phoneNumberString) {
+        var cleaned = ('' + phoneNumberString).replace(/\D/g, '')
+        var match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/)
+        if (match) {
+          return '(' + match[1] + ') ' + match[2] + '-' + match[3]
+        }
+        return null
+      }      
+      
+      function drawProviders() {
+        
+        var options, responseJson;
+                
+        //setup options object with json settings for query and response
+        options = {query: {f: 'json'}, responseType: 'json'};
+        
+        //make the REST call to the JSON of providers
+        esriRequest(strUrl, options).then(function(response){
+           
+          responseJson = response.data;
+          
+          console.log("number of providers to draw: " + responseJson.length);
+        
+          //only try to draw the trains if there are trains to draw
+          if (responseJson.length > 0) {
+
+            glyrProviders.removeAll();
+
+            //loop through each train object in the array
+            for (i = 0; i < responseJson.length; i++) {              
+                        
+              var eachProvider = responseJson[i];  //get each train object
+
+              //get provider's location
+              var lat = eachProvider.Latitude;    
+              var long = eachProvider.Longitude; 
+
+              //get other attributes for the popup
+              var attribsProvider = {
+                PROVIDERNAME: eachProvider.ProviderName,
+                ADDRESS: eachProvider.AddressLine1,
+                PHONE: formatPhoneNumber(eachProvider.PhoneNumber)
+              };
+
+              // ADD POPUP TEMPLATE STUFF HERE
+              var ptProviders = new PopupTemplate({
+                title: "Provider Info",
+                content: "<p>The provider name is: <br><b>{PROVIDERNAME}</b>" +
+                         "<p>They are located at: <b>{ADDRESS}</b>" +
+                         "<p>You can call them at: <b>{PHONE}</b>" +
+                         "<p><img src='https://aws-website-images.s3.amazonaws.com/childcare.png'></img>"
+              })
+
+              //create point geometry
+              var ptProvider = new Point({
+                longitude: long,
+                latitude: lat
+              });
+              
+              //graphic = geometry + symbol
+              var grProvider = new Graphic({
+                geometry: ptProvider,
+                symbol: smsProvider,
+                attributes: attribsProvider,
+                popupTemplate: ptProviders
+              })
+
+              //add provider's graphic marker symbol to the graphics layer
+              glyrProviders.add(grProvider);
+            
+            } //end for each provider
+
+          } else {
+            console.log("No providers to draw");
+          } //end of: if (responseJson.length > 0)
+
+        }); //end of: esriRequest block
+
+      }     //end of: drawProviders() function -----------------------------------
+
+      
+      // things to do after the map and app load
+      mapView.when(function () {
+        drawProviders(); // draw the providers
+      });
+       
+    });
+  </script>
+</head>
+
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
