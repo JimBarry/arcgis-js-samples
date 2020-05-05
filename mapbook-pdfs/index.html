@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+
+    <title>Map Book Chooser</title>
+
+    <script>
+      function openMap() {
+        var strMapBook = document.getElementById("mapbook").value;
+        var strMapNumb = document.getElementById("mapnumb").value;
+        var urlPDF = "https://aws-website-datafiles.s3-us-west-2.amazonaws.com/mapbooks" +
+          "/book" + strMapBook +
+          "/map" + strMapNumb + ".pdf";
+        console.log(urlPDF);
+        window.open(urlPDF, '_blank', 'fullscreen=yes');
+      }
+    </script>
+
+  </head>
+
+  <body>
+
+    <div>
+      <label for="mapbook">Choose a map book:</label>
+      <select id="mapbook">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="mapnumb">Enter a map number:</label>
+      <select id="mapnumb">
+        <option value="001">001</option>
+        <option value="002">002</option>
+        <option value="003">003</option>
+      </select> 
+    </div>
+
+    <div>
+      <button class="btn" id="btnOpenMap" onclick="openMap()">Open Map</button>
+    </div>
+
+  </body>
+
+</html>
