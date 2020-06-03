@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Basic REST Request v2</title>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.15/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.15/"></script>
+
+  </head>
+
+  <body>
+
+    <div>
+      <h4>How to make a REST call and print the JSON results</h4>
+    </div>
+    
+    <div>
+      <input type="text" id="url-input" size=200 
+             value="https://jimbarry.github.io/json-files/providers.json">
+      </input>
+    <!-- 
+    https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson 
+    https://esrirail.maps.arcgis.com/sharing/rest/content/users/jbarry_rail?f=json
+    -->
+    </div>
+    
+    <div>
+      <button type="button" id="btnPrintJsonResponse">Print JSON Response</button>
+    </div>
+
+    <div id="draw-text">
+      <h4>json will draw here</h4>
+    </div>
+
+        
+    <script>
+      require(["esri/request"], function(esriRequest, dom) {
+                
+        function printJsonResponse() {
+          var url = document.getElementById("url-input").value;
+          esriRequest(url, {responseType: "json"}).then(function(response) {
+            var geoJson = response.data;
+            document.getElementById("draw-text").innerHTML = JSON.stringify(geoJson);
+          });
+        }
+
+      // BUTTONS
+        const btn2 = document.getElementById("btnPrintJsonResponse");
+        btn2.onclick = () => {
+          printJsonResponse();
+        }
+          
+      }); //end of require
+    </script>      
+  
+  </body>
+
+</html>
