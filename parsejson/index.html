@@ -27,6 +27,7 @@
   </style>
 
   <script>
+
     require([
       "esri/Map",
       "esri/views/MapView",
@@ -38,10 +39,12 @@
       "dojo/dom",
       "dojo/on"
     ], function(Map, MapView, GraphicsLayer, Point, Graphic, SimpleMarkerSymbol, PopupTemplate, dom, on) {
+
       // map with gray basemap tiles
       var map = new Map({
         basemap: "gray"
       });
+
       // mapview centered on Philadelphia
       var mapView = new MapView({
         container: "viewDiv",
@@ -49,50 +52,63 @@
         zoom: 11,
         center: [-75.16, 39.95]
       });
+      
       // graphicslayer where features from parsed json will draw
       var gl = new GraphicsLayer();
       map.add(gl);
+      
       // marker symbol each feature from the parsed json will draw with
       var sms = new SimpleMarkerSymbol({
         style: "square",
         color: "red",
         size: "8px"
       });
+      
       // read features out of json file, and load each into graphicslayer
       function loadFeaturesFromJson() {
+      
         // async http request to the json file
         arcgisRest.request("providers.json")
           .then(response => {
             if (response.length > 0) {
               arrayFeatures = response;
+        
               // for each element in the array stored in the json file...
               for (i = 0; i < arrayFeatures.length; i++) {
                 elem = arrayFeatures[i];
+              
                 // create a point geometry from the lat/long values
                 var pt = new Point({
                   latitude: elem.Latitude,
                   longitude: elem.Longitude
                 });
+                
                 // create a graphic by combining the geometry with the symbol
                 var gr = new Graphic({
                   geometry: pt,
                   symbol: sms
                 });
+                
                 // add the graphic to the graphicslayer
                 gl.add(gr);
               } // end for
             } // end if
           }); // end request().then
       } // end of function loadFeaturesFromJson
+      
       function clearFeatures() {
         // empty the graphics layer and redraw the map, showing it clear
         gl.removeAll();
       } // end of function clearFeatures()
+      
       // BUTTONS
+      
       // connect the button elements to the function will be called on click
       on(dom.byId("btnLoadFeaturesFromJson"), "click", loadFeaturesFromJson);
       on(dom.byId("btnClearFeatures"), "click", clearFeatures);
+    
     }); //end of require
+  
   </script>
 
 </head>
