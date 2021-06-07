@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Basic Read and Parse JSON containing features (not GeoJSON)</title>
+
+  <!-- require polyfills for fetch and Promise from https://polyfill.io -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es5%2Cfetch%2CPromise"></script>
+  <!-- require ArcGIS REST JS libraries from https://unpkg.com -->
+  <script src="https://unpkg.com/@esri/arcgis-rest-request@3.1.1/dist/umd/request.umd.js"></script>
+
+  <!-- ArcGIS API for JavaScript, and associated CSS -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.19/esri/themes/light/main.css" />
+  <script src="https://js.arcgis.com/4.19/"></script>
+
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/GraphicsLayer",
+      "esri/geometry/Point",
+      "esri/Graphic",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/PopupTemplate",
+      "dojo/dom",
+      "dojo/on"
+    ], function(Map, MapView, GraphicsLayer, Point, Graphic, SimpleMarkerSymbol, PopupTemplate, dom, on) {
+      // map with gray basemap tiles
+      var map = new Map({
+        basemap: "gray"
+      });
+      // mapview centered on Philadelphia
+      var mapView = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 11,
+        center: [-75.16, 39.95]
+      });
+      // graphicslayer where features from parsed json will draw
+      var gl = new GraphicsLayer();
+      map.add(gl);
+      // marker symbol each feature from the parsed json will draw with
+      var sms = new SimpleMarkerSymbol({
+        style: "square",
+        color: "red",
+        size: "8px"
+      });
+      // read features out of json file, and load each into graphicslayer
+      function loadFeaturesFromJson() {
+        // async http request to the json file
+        arcgisRest.request("providers.json")
+          .then(response => {
+            if (response.length > 0) {
+              arrayFeatures = response;
+              // for each element in the array stored in the json file...
+              for (i = 0; i < arrayFeatures.length; i++) {
+                elem = arrayFeatures[i];
+                // create a point geometry from the lat/long values
+                var pt = new Point({
+                  latitude: elem.Latitude,
+                  longitude: elem.Longitude
+                });
+                // create a graphic by combining the geometry with the symbol
+                var gr = new Graphic({
+                  geometry: pt,
+                  symbol: sms
+                });
+                // add the graphic to the graphicslayer
+                gl.add(gr);
+              } // end for
+            } // end if
+          }); // end request().then
+      } // end of function loadFeaturesFromJson
+      function clearFeatures() {
+        // empty the graphics layer and redraw the map, showing it clear
+        gl.removeAll();
+      } // end of function clearFeatures()
+      // BUTTONS
+      // connect the button elements to the function will be called on click
+      on(dom.byId("btnLoadFeaturesFromJson"), "click", loadFeaturesFromJson);
+      on(dom.byId("btnClearFeatures"), "click", clearFeatures);
+    }); //end of require
+  </script>
+
+</head>
+
+<body>
+
+  <div>
+    <!-- Instructions label -->
+    <h4>Buttons below to load json file contents into GraphicsLayer, or clear</h4>
+  </div>
+
+  <div>
+    <!-- Request json, parse it, load each feature into the graphicslayer -->
+    <button class="btn" id="btnLoadFeaturesFromJson">Load Features</button>
+  </div>
+
+  <div>
+    <!-- Empty the graphicslayer -->
+    <button class="btn" id="btnClearFeatures">Clear Features</button>
+  </div>
+
+  <!-- DIV into which the mapview will draw; see the CSS properties further above -->
+  <div id="viewDiv"></div>
+
+</body>
+
+</html>
