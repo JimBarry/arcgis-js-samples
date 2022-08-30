@@ -1,0 +1,177 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Snap Point to Line</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.24/"></script>
+
+  <script>
+  
+    // TEST DATA
+    const ptCoordinate = [-73.78, 40.84];
+    const plPath = [[-74.19, 40.83],[-73.86, 40.76],[-73.81, 40.98],[-73.67, 41.02]];
+    // TEST DATA
+	
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/widgets/CoordinateConversion",
+      "esri/geometry/geometryEngine",
+      "esri/geometry/Point",
+      "esri/geometry/Polyline",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/Graphic",
+      "esri/layers/GraphicsLayer",
+      "esri/config",
+      "dojo/domReady!"
+    ], function(Map, MapView, CoordinateConversion,
+      geometryEngine, Point, Polyline, SimpleMarkerSymbol,
+      SimpleLineSymbol, Graphic, GraphicsLayer, esriConfig) {
+	  
+      // this API Key is configured for Esri's BASEMAPS ONLY, 
+      //no other location services are accessible
+      esriConfig.apiKey = 'AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL';
+      
+	  // map, mapview, and layers
+      var map = new Map({
+        basemap: "arcgis-light-gray"
+      });
+      var mapView = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 9,
+        center: [-73.95, 40.83] // lng,lat
+      });
+      var glSnapPoints = new GraphicsLayer();
+      map.add(glSnapPoints);
+      
+	  // coordinate display widget
+      let widgetCoords = new CoordinateConversion({
+        view: mapView
+      });
+      mapView.ui.add(widgetCoords, "bottom-left");
+      
+	  // draw point graphic
+      var ptToSnapWith = new Point({
+        latitude: ptCoordinate[1],
+        longitude: ptCoordinate[0]
+      });
+      var symPoint = new SimpleMarkerSymbol({
+        style: "square",
+        color: "yellow",
+        size: 12
+      });
+      var grPoint = new Graphic({
+        geometry: ptToSnapWith,
+        symbol: symPoint
+      });
+      mapView.graphics.add(grPoint);
+      
+	  // draw polyline graphic
+      var plToSnapTo = new Polyline({
+        spatialReference: {
+          wkid: 4326
+        },
+        paths: [plPath]
+      });
+      var symPolyline = new SimpleLineSymbol({
+        color: "#880000",
+        width: "2px"
+      });
+      var grPolyline = new Graphic({
+        geometry: plToSnapTo,
+        symbol: symPolyline
+      });
+      mapView.graphics.add(grPolyline);
+      
+	  // snap the input point to the input polyline, using a 'snaptype':
+      // (ie, closest vertex, closest spot along the edge, start node, extent centroid)
+      function snapPointToLine(plSnap, ptSnap, snaptype) {
+
+        var npr;          // NearestPointResult object
+        var ptSnapped;    // Point object
+        var colorSnapped; // color hex string
+
+        switch (snaptype) {
+          case 'vertex':
+            npr = geometryEngine.nearestVertex(plSnap, ptSnap);
+            ptSnapped = npr.coordinate;
+            colorSnapped = '#008800';
+            break;
+          case 'edge':
+            npr = geometryEngine.nearestCoordinate(plSnap, ptSnap);
+            ptSnapped = npr.coordinate;
+            colorSnapped = '#ff0000';
+            break;
+          case 'first':
+            ptSnapped = plSnap.getPoint(0, 0);
+            colorSnapped = '#0000ff';
+            break;
+          case 'centroid':
+            ptSnapped = plSnap.extent.center;
+            colorSnapped = '#000000';
+        } // end switch(snaptype)
+
+        // make symbol, graphic, then draw to the map
+        var symSnapPoint = new SimpleMarkerSymbol({
+          style: "x",
+          outline: {
+            type: 'simple-line',
+            color: colorSnapped,
+            width: '3px'
+          },
+          size: 12
+        });
+        var grSnapPoint = new Graphic({
+          geometry: ptSnapped,
+          symbol: symSnapPoint
+        });
+        glSnapPoints.add(grSnapPoint);
+      } // end of function snapPointToLine()
+
+      // clear the map of all snap points
+      function clearSnapPoints() {
+        glSnapPoints.removeAll()
+      }
+
+      // button actions
+      document.getElementById('btnSnapToClosestVertex').onclick =
+        function() {snapPointToLine(plToSnapTo, ptToSnapWith, 'vertex')};
+      document.getElementById('btnSnapToClosestEdge').onclick =
+        function() {snapPointToLine(plToSnapTo, ptToSnapWith, 'edge')};
+      document.getElementById('btnSnapToFirstVertex').onclick =
+        function() {snapPointToLine(plToSnapTo, ptToSnapWith, 'first')};
+      document.getElementById('btnSnapToCentroid').onclick =
+        function() {snapPointToLine(plToSnapTo, ptToSnapWith, 'centroid')};
+      document.getElementById('btnClearSnapPoints').onclick =
+        function() {clearSnapPoints()};
+		
+    }); //end of require()
+	
+  </script>
+</head>
+
+<body>
+  <div>
+    <button class="btn" id="btnSnapToClosestVertex">Snap To Closest Vertex</button>
+    <button class="btn" id="btnSnapToClosestEdge">Snap to Closest Edge</button>
+    <button class="btn" id="btnSnapToFirstVertex">Snap to First Vertex</button>
+    <button class="btn" id="btnSnapToCentroid">Snap to Centroid</button>
+    <button class="btn" id="btnClearSnapPoints">Clear Snap Points</button>
+  </div>
+  <div id="viewDiv"></div>
+</body>
+</html>
