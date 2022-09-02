@@ -44,7 +44,7 @@
 	  
       // this API Key is configured for Esri's BASEMAPS ONLY, 
       //no other location services are accessible
-      esriConfig.apiKey = 'AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL';
+      esriConfig.apiKey = 'your_api_key';
       
 	  // map, mapview, and layers
       var map = new Map({
@@ -126,21 +126,21 @@
             colorSnapped = '#000000';
 			break;
           case '50along':
-		    // get the length, in map units, of the polyline
-		    var dLength = geometryEngine.geodesicLength(plSnap);
-			// calculate 100th of that length
-			var d100th = dLength / 100;
-			// densify the polyline so that there is no more than 100th
-			// of the polyline's length between each new vertex
-			var plDensified = geometryEngine.geodesicDensify(plSnap, d100th);
-			// count the number of vertices.  this will contain all of
-			// the original vertices plus all the densified vertices
-			var iNumVertices = plDensified.paths[0].length;
-			// find the vertex which is the middle-most vertex
-			var iHalfwayVertex = Math.round(iNumVertices / 2);
-			// return a point that is very close to being the spot 50% along 
-			// the original polyline
-			var ptSnapped = plDensified.getPoint(0, iHalfwayVertex);
+	    // get the length, in map units, of the polyline
+	    var dLength = geometryEngine.geodesicLength(plSnap);
+		// calculate 100th of that length
+		var d100th = dLength / 100;
+		// densify the polyline so that there is no more than 100th
+		// of the polyline's length between each new vertex
+		var plDensified = geometryEngine.geodesicDensify(plSnap, d100th);
+		// count the number of vertices.  this will contain all of
+		// the original vertices plus all the densified vertices
+		var iNumVertices = plDensified.paths[0].length;
+		// find the vertex which is the middle-most vertex
+		var iHalfwayVertex = Math.round(iNumVertices / 2);
+		// return a point that is very close to being the spot 50% along 
+		// the original polyline
+		var ptSnapped = plDensified.getPoint(0, iHalfwayVertex);
             colorSnapped = '#00cccc';	
             break;			
 		} // end switch(snaptype)
