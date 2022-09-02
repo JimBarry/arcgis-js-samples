@@ -42,8 +42,7 @@
       geometryEngine, Point, Polyline, SimpleMarkerSymbol,
       SimpleLineSymbol, Graphic, GraphicsLayer, esriConfig) {
 	  
-      // this API Key is configured for Esri's BASEMAPS ONLY, 
-      //no other location services are accessible
+      // go to developers.arcgis.com to make an API Key
       esriConfig.apiKey = 'your_api_key';
       
 	  // map, mapview, and layers
@@ -98,7 +97,7 @@
       });
       mapView.graphics.add(grPolyline);
       
-	  // snap the input point to the input polyline, using a 'snaptype':
+      // snap the input point to the input polyline, using a 'snaptype':
       // (ie, closest vertex, closest spot along the edge, start node, extent centroid)
       function snapPointToLine(plSnap, ptSnap, snaptype) {
 
@@ -143,7 +142,7 @@
 		var ptSnapped = plDensified.getPoint(0, iHalfwayVertex);
             colorSnapped = '#00cccc';	
             break;			
-		} // end switch(snaptype)
+	} // end switch(snaptype)
 
         // make symbol, graphic, then draw to the map
         var symSnapPoint = new SimpleMarkerSymbol({
