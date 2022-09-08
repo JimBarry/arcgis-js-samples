@@ -1,0 +1,280 @@
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Snap Point to Line</title>
+  <style>
+    html,
+    body,
+    #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 95%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/css/main.css">
+  <script src="https://js.arcgis.com/4.24/"></script>
+
+  <script>
+    // TEST DATA
+    const ptCoordinate = [-73.78, 40.82];
+    const plPath = [
+      [-74.19, 40.71],
+      [-73.43, 40.74],
+      [-74.09, 40.79],
+      [-73.25, 40.77],
+      [-73.56, 40.79],
+      [-73.85, 40.86],
+      [-73.71, 40.87]
+    ];
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/widgets/CoordinateConversion",
+      "esri/geometry/geometryEngine",
+      "esri/geometry/Point",
+      "esri/geometry/Multipoint",
+      "esri/geometry/Polyline",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/symbols/SimpleLineSymbol",
+      "esri/Graphic",
+      "esri/layers/GraphicsLayer",
+      "esri/config",
+      "dojo/domReady!"
+    ], function(Map, MapView, CoordinateConversion,
+      geometryEngine, Point, Multipoint, Polyline,
+      SimpleMarkerSymbol, SimpleLineSymbol, Graphic, GraphicsLayer,
+      esriConfig) {
+      // this API Key is configured for Esri's BASEMAPS ONLY, 
+      //no other location services are accessible
+      esriConfig.apiKey = 'AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL';
+      // map, mapview, and layers
+      var map = new Map({
+        basemap: "arcgis-light-gray"
+      });
+      var mapView = new MapView({
+        container: "viewDiv",
+        map: map,
+        zoom: 9,
+        center: [-73.78, 40.82] // lng,lat
+      });
+      var glInputPoints = new GraphicsLayer();
+      map.add(glInputPoints);
+      var glInputLines = new GraphicsLayer();
+      map.add(glInputLines);
+      var glInputVertices = new GraphicsLayer();
+      map.add(glInputVertices);
+      var glSnapPoints = new GraphicsLayer();
+      map.add(glSnapPoints);
+      // coordinate display widget
+      let widgetCoords = new CoordinateConversion({
+        view: mapView
+      });
+      mapView.ui.add(widgetCoords, "bottom-left");
+      // draw point graphic
+      var ptToSnapWith = new Point({
+        latitude: ptCoordinate[1],
+        longitude: ptCoordinate[0]
+      });
+      var symPoint = new SimpleMarkerSymbol({
+        style: "square",
+        color: "yellow",
+        size: 12
+      });
+      var grPoint = new Graphic({
+        geometry: ptToSnapWith,
+        symbol: symPoint
+      });
+      glInputPoints.add(grPoint);
+      // draw polyline graphic
+      var plToSnapTo = new Polyline({
+        spatialReference: {
+          wkid: 4326
+        },
+        paths: [plPath]
+      });
+      var symPolyline = new SimpleLineSymbol({
+        color: "#880000",
+        width: "2px"
+      });
+      var grPolyline = new Graphic({
+        geometry: plToSnapTo,
+        symbol: symPolyline
+      });
+      glInputLines.add(grPolyline);
+      // draw input polyline's vertices
+      var symVertices = new SimpleMarkerSymbol({
+        style: "square",
+        color: "yellow",
+        size: 6
+      });
+      for (i = 0; i < plPath.length; i++) {
+        var grVertex = new Graphic({
+          geometry: new Point(plPath[i]),
+          symbol: symVertices
+        });
+        glInputVertices.add(grVertex);
+      }
+      // snap the input point to the input polyline, using a 'snaptype':
+      // (ie, closest vertex, closest spot along the edge, start node, extent centroid)
+      function snapPointToLine(plSnap, ptSnap, snaptype) {
+        var npr; // NearestPointResult object
+        var ptSnapped; // Point object
+        var colorSnapped; // color hex string
+        switch (snaptype) {
+          case 'vertex':
+            npr = geometryEngine.nearestVertex(plSnap, ptSnap);
+            ptSnapped = npr.coordinate;
+            colorSnapped = '#008800';
+            break;
+          case 'edge':
+            npr = geometryEngine.nearestCoordinate(plSnap, ptSnap);
+            ptSnapped = npr.coordinate;
+            colorSnapped = '#ff0000';
+            break;
+          case 'first':
+            ptSnapped = plSnap.getPoint(0, 0);
+            colorSnapped = '#0000ff';
+            break;
+          case 'centroid':
+            ptSnapped = plSnap.extent.center;
+            colorSnapped = '#c51b8a';
+            break;
+          case '50along':
+            // get the length, in map units, of the polyline
+            var dLength = geometryEngine.geodesicLength(plSnap);
+            // calculate 100th of that length
+            var d100th = dLength / 100;
+            // densify the polyline so that there is no more than 100th
+            // of the polyline's length between each new vertex
+            var plDensified = geometryEngine.geodesicDensify(plSnap, d100th);
+            // count the number of vertices.  this will contain all of
+            // the original vertices plus all the densified vertices
+            var iNumVertices = plDensified.paths[0].length;
+            // find the vertex which is the middle-most vertex
+            var iHalfwayVertex = Math.round(iNumVertices / 2);
+            // return a point that is very close to being the spot 50% along 
+            // the original polyline
+            var ptSnapped = plDensified.getPoint(0, iHalfwayVertex);
+            colorSnapped = '#00cccc';
+            break;
+        } // end switch(snaptype)
+        // make symbol, graphic, then draw to the map
+        var symSnapPoint = new SimpleMarkerSymbol({
+          style: "x",
+          outline: {
+            type: 'simple-line',
+            color: colorSnapped,
+            width: '3px'
+          },
+          size: 12
+        });
+        var grSnapPoint = new Graphic({
+          geometry: ptSnapped,
+          symbol: symSnapPoint
+        });
+        glSnapPoints.add(grSnapPoint);
+      } // end of function snapPointToLine()
+      // clear the map of all snap points
+      function clearSnapPoints() {
+        glSnapPoints.removeAll()
+      }
+
+      function reorderVertices() {
+        // get the current line geometry
+        var pl = grPolyline.geometry;
+        // get the current line symbol
+        var sym = grPolyline.symbol;
+        // get the current line's path
+        var arrayPathOld = pl.paths[0];
+        // clone that path
+        var arrayPathNew = JSON.parse(JSON.stringify(arrayPathOld));
+        // make a multipoint feature from the cloned path's vertices
+        var mpt = new Multipoint({
+          points: arrayPathNew
+        });
+        // if the multipoint is wider than tall, sort the vertices left to right
+        // if the multipoint is taller than wide, sort the vertices bottom to top
+        if (mpt.width > mpt.height) {
+          arrayPathNew.sort(function(a, b) {
+            return a[1] - b[1]
+          });
+        } else {
+          arrayPathNew.sort(function(a, b) {
+            return a[0] - b[0]
+          });
+        }
+        // make a new polyline from the sorted vertices
+        var plNew = new Polyline({
+          paths: [arrayPathNew]
+        });
+        // add the new polyline geometry to the existing polyline graphic
+        grPolyline.geometry = plNew;
+        plToSnapTo = plNew;
+        // if any snap points are on the map, clear them too
+        clearSnapPoints();
+      } // end of function reorderVertices()
+      // button actions
+      document.getElementById('btnReorderVertices').onclick =
+        function() {
+          reorderVertices()
+        };
+      document.getElementById('btnSnapToClosestVertex').onclick =
+        function() {
+          snapPointToLine(plToSnapTo, ptToSnapWith, 'vertex')
+        };
+      document.getElementById('btnSnapToClosestEdge').onclick =
+        function() {
+          snapPointToLine(plToSnapTo, ptToSnapWith, 'edge')
+        };
+      document.getElementById('btnSnapToFirstVertex').onclick =
+        function() {
+          snapPointToLine(plToSnapTo, ptToSnapWith, 'first')
+        };
+      document.getElementById('btnSnapToCentroid').onclick =
+        function() {
+          snapPointToLine(plToSnapTo, ptToSnapWith, 'centroid')
+        };
+      document.getElementById('btnSnapTo50Along').onclick =
+        function() {
+          snapPointToLine(plToSnapTo, ptToSnapWith, '50along')
+        };
+      document.getElementById('btnClearSnapPoints').onclick =
+        function() {
+          clearSnapPoints()
+        };
+    }); //end of require()
+  </script>
+</head>
+
+<body>
+  <div>
+    <button class="btn" style="color:#000000" id="btnReorderVertices">
+      Reorder Vertices
+    </button>
+    <button class="btn" style="color:#008800" id="btnSnapToClosestVertex">
+      Snap To Vertex
+    </button>
+    <button class="btn" style="color:#ff0000" id="btnSnapToClosestEdge">
+      Snap to Edge
+    </button>
+    <button class="btn" style="color:#0000ff" id="btnSnapToFirstVertex">
+      Snap to Origin
+    </button>
+    <button class="btn" style="color:#c51b8a" id="btnSnapToCentroid">
+      Snap to Centroid
+    </button>
+    <button class="btn" style="color:#00cccc" id="btnSnapTo50Along">
+      Snap to ~50% Along
+    </button>
+  </div>
+  <div>
+    <button class="btn" id="btnClearSnapPoints">CLEAR ALL</button>
+  </div>
+  <div id="viewDiv"></div>
+</body>
+
+</html>
