@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>ArcGIS REST JS</title>
+    <style>
+      body {font-family: monospace; color: white;}
+      pre {overflow: auto; padding: 1rem;}
+      body,
+      pre {background: #000000;}
+    </style>
+  </head>
+  <body>
+    <pre id="result"></pre>
+    <script src="https://unpkg.com/@esri/arcgis-rest-request@4.0.0/dist/bundled/request.umd.js"></script>
+    <script src="https://unpkg.com/@esri/arcgis-rest-routing@4.0.0/dist/bundled/routing.umd.js"></script>
+    <script>
+
+      const apiKey = "your_key";
+      const authentication = arcgisRest.ApiKeyManager.fromKey(apiKey);
+
+      arcgisRest
+        .solveRoute({
+          stops: [
+            [-74.068398, 40.418693],
+            [-74.067576, 40.417071]
+          ],
+          authentication
+        })
+        .then((response) => {
+          console.log(response);
+          document.getElementById("result").textContent = JSON.stringify(response, null, 2);
+        });
+
+    </script>
+
+  </body>
+</html>
