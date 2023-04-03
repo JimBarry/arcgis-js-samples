@@ -1,0 +1,49 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Geocode REST with Fetch()</title>
+    <style>
+      body {font-family: monospace; color: white;}
+      pre {overflow: auto; padding: 1rem;}
+      body,
+      pre {background: #000000;}
+    </style>
+</head>
+<body>
+  <pre id="result"></pre>
+
+  <script>
+  
+    const apiKey = "your_api_key_or_token_here"
+    var strFullAddress = "380 New York St, Redlands, CA, 92373";
+
+    // build the REST GET request URL
+    var url = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?" +
+        "SingleLine=" + strFullAddress + 
+	    "&token=" + apiKey +
+	    "&f=pjson";
+		
+    // encode the URL
+    url = encodeURI(url);
+	
+	// call the async function to make the REST request
+	geocodeAddress(url);
+	
+	// async function so that we can use "await"
+	async function geocodeAddress(restUrl) {
+	
+	  // use "fetch()" to make the REST call
+	  const response = await fetch(restUrl);
+	  const jsonData = await response.json();
+	
+   	  // nicely format and draw the result to the page
+	  document.getElementById("result").textContent = JSON.stringify(jsonData, null, 2);
+    }	
+	
+  </script>
+
+  
+</body>
+
+</html>

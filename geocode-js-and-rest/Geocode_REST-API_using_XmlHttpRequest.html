@@ -1,0 +1,52 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Geocode REST with XmlHttpRequest</title>
+    <style>
+      body {font-family: monospace; color: white;}
+      pre {overflow: auto; padding: 1rem;}
+      body,
+      pre {background: #000000;}
+    </style>
+</head>
+<body>
+  <pre id="result"></pre>
+
+  <script>
+  
+    const apiKey = "your_api_key_or_token_here"
+    var strFullAddress1 = "380 New York St, Redlands, CA, 92373";
+	var strFullAddress2 = "500 7th Ave, New York, NY, 10018";
+	
+	// use the '1' or '2' example addresses
+	var strFullAddress = strFullAddress1;
+
+    // build the REST GET request URL
+    var url = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?" +
+        "SingleLine=" + strFullAddress + 
+	    "&token=" + apiKey +
+	    "&f=pjson";
+    // encode the URL
+    url = encodeURI(url);
+
+    // make the REST GET request
+    var req = new XMLHttpRequest();
+    req.open('GET', url, true);     
+    req.addEventListener("readystateexchange", processRequest, false);
+    req.send();
+    req.onreadystatechange = processRequest;
+
+    // when REST GET request's response comes back, draw the results to the page
+    function processRequest(e) {      
+      if (req.readyState == 4 && req.status == 200) {
+        document.getElementById("result").textContent = req.responseText;
+      }     
+    }       
+
+  </script>
+
+  
+</body>
+
+</html>

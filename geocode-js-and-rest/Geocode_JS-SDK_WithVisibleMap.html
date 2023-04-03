@@ -1,0 +1,50 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Geocode JSSDK with MAP</title>
+  <style>
+    html, body, #viewDiv {padding: 0; margin: 0; height: 100%; width: 100%;}
+  </style>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.26/"></script>
+
+  <script>
+
+  require([
+    "esri/config",
+    "esri/Map",
+    "esri/views/MapView",
+    "esri/widgets/Search"
+
+  ], function(esriConfig, Map, MapView, Search) {
+
+  esriConfig.apiKey = "your_api_key_or_token_here";
+
+  const map = new Map({
+      basemap: "arcgis-light-gray"
+    });
+
+  const view = new MapView({
+      container: "viewDiv",
+      map: map,
+      center: [-74.1,40.6],
+      zoom: 9
+    });
+
+  const search = new Search({  //Add Search widget
+      view: view,
+	  searchTerm: "500 7th Ave, New York, NY, 10018",
+    });
+
+    view.ui.add(search, "top-right"); //Add to the map
+
+  }); // end of require
+  
+  </script>
+
+</head>
+<body>
+  <div id="viewDiv"></div>
+</body>
+</html>
