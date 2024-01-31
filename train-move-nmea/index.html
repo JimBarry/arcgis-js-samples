@@ -1,0 +1,417 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Train Tracking NMEA stream</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 98%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script src="data/nmea_stream.js"> </script>		
+  
+  <script>
+
+	// TIMER GLOBAL 
+	// If you can find a better way to handle this than as a global, even better
+	var timerVehicleMovement;
+
+	// ARCGIS JS SDK 'require()' BLOCK
+    require([
+      "esri/config",
+      "esri/geometry/geometryEngine",
+	  "esri/geometry/projection",
+	  "esri/geometry/SpatialReference",
+	  "esri/rest/support/Query",
+      "esri/Map",
+      "esri/views/MapView",
+	  "esri/layers/FeatureLayer",
+	  "esri/layers/GraphicsLayer",
+	  "esri/layers/CSVLayer",
+	  "esri/geometry/Point",
+	  "esri/symbols/SimpleMarkerSymbol",
+	  "esri/symbols/PictureMarkerSymbol",
+	  "esri/symbols/SimpleFillSymbol",
+      "esri/Graphic",  
+	  "esri/widgets/CoordinateConversion"
+
+    ], function(esriConfig, geometryEngine, projection, SpatialReference, Query,
+				Map, MapView, FeatureLayer, GraphicsLayer, CSVLayer, Point, SimpleMarkerSymbol,
+				PictureMarkerSymbol, SimpleFillSymbol, Graphic, CoordinateConversion) {
+
+    // API KEY CONFIGURED TO ALLOW ESRI BASEMAPS AND LOCATION SERVICES
+	
+	myApiKey = "your_api_key_goes_here";
+    esriConfig.apiKey = myApiKey;
+	
+	// GLOBALS
+	var sr4326 = SpatialReference.WGS84
+	var sr3857 = SpatialReference.WebMercator
+	var ptTrainLocation = new Point({latitude: 32.24873, longitude: -109.13754, spatialReference: sr4326});
+	var arrayReportData = [];	
+	var vehicle_step = -1;
+	
+    // CONFIGURE MAP, LAYERS, MAPVIEW
+	
+	// map
+    const map = new Map({
+      basemap: "osm" // OpenStreetMap basemap
+    });
+	
+	// textsymbol for the mileposts layer
+	const labelMilepost = {
+	  symbol: {
+	    type: "text",
+	    color: "black",
+	    backgroundColor: [255,255,255, 0.5],
+	    borderLineColor: "black",
+	    borderLineSize: 0,
+	    yoffset: 10,
+	    xoffset: -5,
+		font: {family: "Arial", size: 10, weight: "normal"}
+	  },
+	  labelPlacement: "above-center",
+	  labelExpressionInfo: {expression: "$feature.milepost_num"}
+	};
+	
+	// mileposts layer
+	var flMileposts = new FeatureLayer({
+	  url: "https://services9.arcgis.com/hsPsr2XddCBblVhb/arcgis/rest/services/yuma/FeatureServer/0/",
+	  renderer: {type:"simple",symbol:{type:"simple-marker",style:"diamond",color:"green",size:10}},
+	  labelingInfo: [labelMilepost] // from textsymbol above
+	});	
+	
+	// rail tracks layer
+	var flTracks = new FeatureLayer({
+	  url: "https://services9.arcgis.com/hsPsr2XddCBblVhb/arcgis/rest/services/yuma/FeatureServer/1/",
+	  renderer: {type:"simple",symbol:{type:"simple-line",color:"blue"}}
+	}); 
+	
+	// train movement layer (invisible, just for reference/testing/debugging)
+	var csvlTrain1234 = new CSVLayer({
+	  url: "data/train_321.csv",
+	  visible: false,
+	  latitudeField: "lat",
+	  longitudeField: "lon"
+	});
+	
+	// add feature layers to map, bottom to top
+	map.addMany([csvlTrain1234, flTracks, flMileposts]);
+	
+	// create graphics layers for trains and selected mileposts, add to map
+	var glyrTrains = new GraphicsLayer();
+	var glyrMileposts = new GraphicsLayer();
+	var glyrSearch = new GraphicsLayer();
+	glyrSearch.visible = false;
+	map.addMany([glyrMileposts, glyrSearch, glyrTrains]);
+
+	// configure mapview; bind mapview to the map and the page div
+    const view = new MapView({
+      container: "viewDiv",
+      map: map,
+      center: [-109.1375448, 32.24873815],
+      zoom: 14
+    });
+	
+	// GRAPHIC SYMBOLS
+	
+	// simple fill symbol for search radius
+    var sfsymSearch = new SimpleFillSymbol({
+	  style: "none",
+	  outline: {color: [255,0,0, 0.5], width: "2px"}
+	});
+	// simple marker symbol for the found nearest milepost
+	var smsymFoundMilepost = new SimpleMarkerSymbol({
+	  style: "circle",
+	  color: [255,0,0, 0.3],
+	  size: "22px",
+	  outline: {color: [0,0,0, 0.5]}
+	});
+	// make a nice "train" transparent PNG custom marker symbol
+	var pmsymTrain = new PictureMarkerSymbol({
+	  url: "data/train.png",
+	  width: 24,
+	  height: 16
+	});
+	
+	// starts and pauses vehicle movement using a JS timer
+	function toggleVehicleMovement() {
+	  if (chkToggleMove.checked == true) {
+	    moveVehicle();
+	    timerVehicleMovement = setInterval(moveVehicle, 1000);
+	  } else {
+        clearTimeout(timerVehicleMovement);
+      }	  
+	}
+	
+	// when timer is on, the vehicle moves.
+	// for each movement we find the closest milepost to it,
+	// and display info about the train and milepost in a popup
+	
+	function moveVehicle() {
+	
+	  // update the vehicle location
+	  vehicle_step++
+	  // if we're at the end of the NMEA stream, reset to the start and loop again
+      if (vehicle_step == NMEA_STREAM.length) {vehicle_step = 0;};					
+	  
+	  // parse lat/lon values out of the GPS NMEA stream.
+	  // ((mockup of the location stream is stored in "data/nmea_stream.js"))
+	  lat = NMEA_STREAM[vehicle_step][3];
+	  lon = NMEA_STREAM[vehicle_step][4];
+	  
+	  // if the user chooses to "follow", make the map pan, to center the train
+	  if (chkToggleFollow.checked){view.center = [lon, lat]};
+	  
+	  // update the train location point
+	  ptTrainLocation.longitude = lon;
+	  ptTrainLocation.latitude = lat;
+	  
+	  // combine the geometry and the marker symbol into a graphic
+	  var gTrain = new Graphic({
+	    geometry: ptTrainLocation,
+		symbol: pmsymTrain
+	  });
+	  
+	  // empty the graphics layer of the old train location and add new train
+	  glyrTrains.removeAll();
+	  glyrTrains.add(gTrain);
+	  
+	  // now let's find the closest milepost to the current train location
+	  findClosestMilepost();
+	}
+	
+	function findClosestMilepost() {
+
+	  try {
+		// get the unprojected train location in lat/lon,
+		// and project that point into web mercator
+	    var pt3857 = projection.project(ptTrainLocation, sr3857);
+		
+		// create a projected circular polygon, one mile in diameter
+		var poly3857 = geometryEngine.geodesicBuffer(pt3857, 655, "meters");
+		
+		// transform that circular polygon back into unprojected space
+		var poly4326 = projection.project(poly3857, sr4326);
+		
+		// draw the unprojected circle that's being used for searching mileposts
+		var gSearchPoly = new Graphic({
+		  symbol: sfsymSearch,
+		  geometry: poly4326,
+		});
+		glyrSearch.removeAll();
+		glyrSearch.add(gSearchPoly);
+		
+		// setup the spatial query parameters
+		var queryClosestMilepost = new Query({
+		  geometry: poly4326,
+		  spatialRelationship: "contains",
+		  returnGeometry: true,
+		  outFields: ["milepost_label", "division", "subdivision", "county", "state"]
+		});
+		
+		// search for the closest milepost to the train's current location
+		flMileposts.queryFeatures(queryClosestMilepost).then((results) => {
+            
+			if (results.features.length > 0) {
+						
+              // get the attributes of the found milepost, for reporting
+			  atts = results.features[0].attributes;
+			  arrayReportData = [];
+			  arrayReportData.push(atts.milepost_label);
+			  arrayReportData.push(atts.division);
+			  arrayReportData.push(atts.subdivision);
+			  arrayReportData.push(atts.county);
+			  arrayReportData.push(atts.state);			
+			
+			  // draw the found milepost
+			  var lonFoundMilepost = results.features[0].geometry.longitude;
+			  var latFoundMilepost = results.features[0].geometry.latitude;
+			  var ptFoundMilepost = new Point({
+			    latitude: latFoundMilepost,
+			    longitude: lonFoundMilepost
+			  });
+			  var gFoundMilepost = new Graphic({
+			    geometry: ptFoundMilepost,
+			    symbol: smsymFoundMilepost
+			  });
+			  glyrMileposts.removeAll();
+			  glyrMileposts.add(gFoundMilepost);
+			
+			  //write the report into the popup on the map
+			  writeReport();
+			  
+			} else {
+			    // default values to report in case no results are returned
+	            arrayReportData = ["000", "not found", "not found", "not found", "not found"];
+				glyrMileposts.removeAll();
+		        writeReport();		
+            }			
+		});	
+	  }
+	  catch(err) {
+	    // default values to report back in case an error is thrown
+	    arrayReportData = ["999", "not found", "not found", "not found", "not found"];
+		writeReport();
+	  }
+	}
+	
+	function writeReport() {
+      
+	  // attribute information about the train and its closest milepost,
+	  // are reported to the user inside a popup hovering on the map
+	  
+      const locationReport = document.createElement("ul");
+      locationReport.classList = "esri-widget esri-widget--panel";
+      locationReport.style.marginTop = "0";
+      locationReport.style.padding = "15px 15px 15px 30px";
+		
+	  if (chkToggleMove.checked == true) {
+	    
+		// current time
+	    labelTime = document.createElement("h3");
+	    labelTime.innerHTML = getFormattedDateTime();
+	    locationReport.appendChild(labelTime);
+		
+		// train number
+		var strTrainNum = NMEA_STREAM[vehicle_step][1];
+	    labelTrainNum = document.createElement("h4");
+	    labelTrainNum.innerHTML = "Train Number: " + strTrainNum;
+	    locationReport.appendChild(labelTrainNum);
+		
+		// road number of lead locomotive
+		var strLocoRN = NMEA_STREAM[vehicle_step][2];
+	    labelLocoRN = document.createElement("h4");
+	    labelLocoRN.innerHTML = "Lead Loco Road Number: " + strLocoRN;
+	    locationReport.appendChild(labelLocoRN);
+		
+		// closest milepost, ahead or behind
+		strClosestMilepost = arrayReportData[0];
+	    labelClosestMilepost = document.createElement("h4");
+	    labelClosestMilepost.innerHTML = "Closest Milepost: " + strClosestMilepost;
+	    locationReport.appendChild(labelClosestMilepost);
+        
+		// division the train is within
+		strDivision = arrayReportData[1];
+	    labelDivision = document.createElement("h4");
+	    labelDivision.innerHTML = "Division: " + strDivision;
+	    locationReport.appendChild(labelDivision);
+		
+		// subdivision the train is within
+		strSubdivision = arrayReportData[2];
+	    labelSubdivision = document.createElement("h4");
+	    labelSubdivision.innerHTML = "Subdivision: " + strSubdivision;
+	    locationReport.appendChild(labelSubdivision);
+        
+		// county the train is within
+		strCounty = arrayReportData[3];
+	    labelCounty = document.createElement("h4");
+	    labelCounty.innerHTML = "County: " + strCounty;
+	    locationReport.appendChild(labelCounty);
+		
+		// state the train is within
+		strState = arrayReportData[4];
+	    labelState = document.createElement("h4");
+	    labelState.innerHTML = "State: " + strState;
+	    locationReport.appendChild(labelState);
+
+	  }; // end: if the vehicle movement checkbox is checked on
+      
+	  // display the train/milepost report toward the upper right of the map
+	  view.ui.empty("top-right");
+      view.ui.add(locationReport, "top-right");
+    }    
+	
+	// when user clicks the "Rewind" button, reset the stream back to the start
+	function rewindVehicleMovement(){vehicle_step = -1;}
+	
+	// toggle on/off the display of the search area graphic 
+	function toggleSearchArea(){glyrSearch.visible = chkToggleSearchArea.checked};
+	
+	// toggle on/off the display of the closest milepost
+	function toggleClosestMilepost(){glyrMileposts.visible = chkToggleClosestMilepost.checked};
+	
+	// format the time, to display in the report popup.
+    // this example:  Mon Jan 1 2024 13:34:05
+	function getFormattedDateTime() {
+	  var dt = new Date();
+	  var d = dt.toDateString();
+	  var h = dt.getHours().toString();
+	  if (h.length == 1){h = '0' + h;};
+	  var m = dt.getMinutes().toString();
+	  if (m.length == 1){m = '0' + m;};
+	  var s = dt.getSeconds().toString();	
+	  if (s.length == 1){s = '0' + s;};
+	  return d + ' ' + h + ':' + m + ':' + s;
+	}
+
+	// WIDGETS
+    
+	const ccWidget = new CoordinateConversion({
+      view: view
+    });
+    view.ui.add(ccWidget, "bottom-left");
+
+    // WIRE UP EVENT LISTENERS FOR UI ELEMENTS 	
+	
+	// this button is disabled by default; it's just for testing/debugging
+	var btnTime = document.getElementById("btnTime")
+	btnTime.addEventListener("click", writeReport);
+	
+	// this checkbox starts the train moving or pauses it
+	var chkToggleMove = document.getElementById("chkToggleMove")
+	chkToggleMove.addEventListener("click", toggleVehicleMovement);
+	
+	// this checkbox makes visible/invisible the search area polygon graphic
+	var chkToggleSearchArea = document.getElementById("chkToggleSearchArea")
+	chkToggleSearchArea.addEventListener("click", toggleSearchArea);
+	
+	// this checkbox makes visible/invisible the closest milepost graphic
+	var chkToggleClosestMilepost = document.getElementById("chkToggleClosestMilepost")
+	chkToggleClosestMilepost.addEventListener("click", toggleClosestMilepost);
+	
+	// this button resets the train movement back to the beginning
+	var btnRewind = document.getElementById("btnRewind")
+	btnRewind.addEventListener("click", rewindVehicleMovement);
+
+    // APP SETUP TASKS FOR AFTER THE MAPVIEW IS FULLY LOADED
+	
+    view.when(() => {
+	
+      // apply some transparency to the basemap to subdue it a bit
+	  map.basemap.baseLayers.getItemAt(0).opacity = 0.3; //70% transparent
+	  
+	  // load the client-side projection engine
+	  projection.load();
+	  	  
+    });
+  }); // end of request()
+
+  </script>
+
+  </head>
+  
+  <body>
+  
+	<!-- DIV FOR THE UI ELEMENTS -->    
+	<div>
+      <button class="btn" id="btnTime" disabled>...</button> <!-- test only -->
+      <input type="checkbox" id="chkToggleMove">Start/Pause Movement |||</input>
+      <input type="checkbox" id="chkToggleFollow" checked>Follow/Unfollow |||</input>
+      <input type="checkbox" id="chkToggleSearchArea" >See Search Area |||</input>
+      <input type="checkbox" id="chkToggleClosestMilepost" checked>See Closest Milepost |||</input>
+      <button class="btn" id="btnRewind">Rewind</button>    
+    </div>
+	
+	<!-- DIV FOR THE MAP -->
+    <div id="viewDiv"></div>
+	
+  </body>
+  
+</html>
