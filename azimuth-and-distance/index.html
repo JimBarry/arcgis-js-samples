@@ -1,0 +1,276 @@
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Azimuth 3-1</title>
+  <style>
+    html, body, #viewDiv {
+      padding: 0;
+      margin: 0;
+      height: 98%;
+      width: 100%;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://js.arcgis.com/4.28/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.28/"></script>
+  <script src="data/nmea_stream.js"> </script>		
+  
+<script>
+
+// ARCGIS JS SDK 'require()' BLOCK
+require([
+  "esri/config",
+  "esri/geometry/geometryEngine",
+  "esri/geometry/projection",
+  "esri/geometry/SpatialReference",
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/GraphicsLayer",
+  "esri/geometry/Point",
+  "esri/symbols/SimpleMarkerSymbol",
+  "esri/Graphic",
+  "esri/symbols/TextSymbol",  
+  "esri/widgets/CoordinateConversion"
+
+], function(esriConfig, geometryEngine, projection, SpatialReference, 
+			Map, MapView, GraphicsLayer, Point, SimpleMarkerSymbol, 
+			Graphic, TextSymbol, CoordinateConversion) {
+
+// API KEY CONFIGURED TO ALLOW ESRI BASEMAPS AND LOCATION SERVICES
+	
+myApiKey = "your_api_key";
+esriConfig.apiKey = myApiKey;
+	
+// GLOBALS
+var sr4326 = SpatialReference.WGS84
+var sr3857 = SpatialReference.WebMercator
+var bDrawStart = true
+var bDrawEnd = false
+	
+// CONFIGURE MAP, LAYERS, MAPVIEW
+
+// map and mapview and graphicslayers
+const map = new Map({
+  basemap: "osm" // OpenStreetMap basemap
+});
+const view = new MapView({
+  container: "viewDiv",
+  map: map,
+  center: [-109.1375448, 32.24873815],
+  zoom: 14
+});	
+var glyrStartPoint = new GraphicsLayer();
+var glyrEndPoint = new GraphicsLayer();
+map.addMany([glyrStartPoint, glyrEndPoint]);
+
+// GRAPHIC SYMBOLS
+
+// simple marker symbol for the start point
+var smsStartPoint = new SimpleMarkerSymbol({
+  style: "circle",
+  color: [0,255,0, 0.3],
+  size: "22px",
+  outline: {color: [0,0,0, 0.5]}
+});
+// simple marker symbol for the end point
+var smsEndPoint = new SimpleMarkerSymbol({
+  style: "circle",
+  color: [255,0,0, 0.3],
+  size: "22px",
+  outline: {color: [0,0,0, 0.5]}
+});	
+// textsymbol for the azimuth labels
+var tsymAzimuth = new TextSymbol({
+    color: "black",
+    yoffset: 0,
+    xoffset: 0,
+    font: {family: "Arial", size: 10, weight: "normal"},
+  labelPlacement: "above-right"
+});
+
+// FUNCTIONS
+
+function drawPoint(event){
+
+  ptScreen = new Point(event.x, event.y);
+  ptMap = view.toMap(ptScreen);
+  ptMap.spatialReference = sr3857;
+  ptDD = projection.project(ptMap, sr4326);
+  
+  if (bDrawStart) {
+    var gStartPoint = new Graphic({
+      geometry: ptDD,
+	  symbol: smsStartPoint
+    })
+	if (glyrStartPoint.graphics.length > 0){glyrStartPoint.removeAll();}
+	glyrStartPoint.add(gStartPoint);
+  }
+  if (bDrawEnd) {
+    var gEndPoint = new Graphic({
+      geometry: ptDD,
+	  symbol: smsEndPoint
+    })
+	if (glyrEndPoint.graphics.length > 0){glyrEndPoint.removeAll();}
+	glyrEndPoint.add(gEndPoint);
+  }
+  
+} // end function drawPoint()
+
+function toggleDraw(){
+
+  bDrawStart = document.getElementById("radioStartPoint").checked 
+  bDrawEnd = document.getElementById("radioEndPoint").checked
+  
+} // end function toggleDraw()
+
+function calcDistance(){
+
+  console.log('calcDistance() was clicked');
+
+  if (glyrStartPoint.graphics.length == 1 && glyrEndPoint.graphics.length == 1) {
+  
+    var ptStart = glyrStartPoint.graphics.at(0).geometry;
+	var ptEnd = glyrEndPoint.graphics.at(0).geometry;
+	var lat1 = ptStart.latitude;
+	var lat2 = ptEnd.latitude;
+	var lon1 = ptStart.longitude;
+	var lon2 = ptEnd.longitude;
+   
+    const R = 6371000; // mean radius of earth in meters
+    let y1 = lat1 * Math.PI/180; // in radians
+    let y2 = lat2 * Math.PI/180;
+    let yDelta = (lat2-lat1) * Math.PI/180;
+    let xDelta = (lon2-lon1) * Math.PI/180;
+    let a = Math.sin(yDelta/2) * Math.sin(yDelta/2) +
+            Math.cos(y1) * Math.cos(y2) *
+            Math.sin(xDelta/2) * Math.sin(xDelta/2);
+    let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    let d = R * c; // in meters
+		
+	msg = 'distance in meters: ' + d.toFixed(2);	
+	console.log(msg);
+	alert(msg);
+	
+  } else { 
+    msg = 'need a start and end point';
+    console.log(msg);
+	alert(msg);
+  }	
+	
+} // end function calcDistance()
+
+function calcAzimuth(){
+
+  console.log('calcAzimuth() was clicked');
+
+  if (glyrStartPoint.graphics.length == 1 && glyrEndPoint.graphics.length == 1) {
+  
+    var ptStart = glyrStartPoint.graphics.at(0).geometry;
+	var ptEnd = glyrEndPoint.graphics.at(0).geometry;
+	
+	let x1 = ptStart.longitude;
+	let y1 = ptStart.latitude;
+	let x2 = ptEnd.longitude;
+	let y2 = ptEnd.latitude;
+
+    let y = Math.sin(x2-x1) * Math.cos(y2);
+    let x = Math.cos(y1)*Math.sin(y2) -
+          Math.sin(y1)*Math.cos(y2)*Math.cos(x2-x1);
+    let θ = Math.atan2(y, x);
+    let brng = (θ*180/Math.PI + 360) % 360; // in degrees
+
+	tsymAzimuth.text = brng
+    var gAzimuthLabel = new Graphic({
+	  geometry: ptEnd,
+	  symbol: tsymAzimuth
+	});	
+    
+	msg = 'forward azimuth in degrees: ' + brng.toFixed(2);
+	console.log(msg);
+	alert(msg); 
+	
+  } else { 
+    msg = 'need a start and end point';
+	console.log(msg);
+	alert(msg); 
+  }	
+	
+} // end function calcAzimuth()
+function clearAll(){
+
+  console.log('removeAll() was clicked');
+  glyrStartPoint.removeAll();
+  glyrEndPoint.removeAll();
+  document.getElementById("radioStartPoint").checked = true; 
+  
+} // end function clearAll()
+
+// WIDGETS
+    
+const ccWidget = new CoordinateConversion({view: view});
+view.ui.add(ccWidget, "bottom-left");
+
+// WIRE UP EVENT LISTENERS FOR UI ELEMENTS 	
+	
+// this option is for creating the start point
+var radioStartPoint = document.getElementById("radioStartPoint")
+radioStartPoint.addEventListener("click", toggleDraw);
+	
+// this option is for creating the end point
+var radioEndPoint = document.getElementById("radioEndPoint")
+radioEndPoint.addEventListener("click", toggleDraw);
+	
+// this button measures the geodesic distance between the two points
+var btnDistance = document.getElementById("btnDistance")
+btnDistance.addEventListener("click", calcDistance);
+		
+// this button measures the starting azimuth between the two points
+var btnAzimuth = document.getElementById("btnAzimuth")
+btnAzimuth.addEventListener("click", calcAzimuth);
+
+// this button clears the map for starting over
+var btnClearAll = document.getElementById("btnClearAll")
+btnClearAll.addEventListener("click", clearAll);
+
+// APP SETUP TASKS FOR AFTER THE MAPVIEW IS FULLY LOADED
+	
+view.when(() => {
+	
+  // apply some transparency to the basemap to subdue it a bit
+  map.basemap.baseLayers.getItemAt(0).opacity = 0.5; // 50% transparent
+	  
+  // load the client-side projection engine
+  projection.load();
+  
+  view.on("pointer-up", drawPoint);
+  
+});  // end of view.when(()=>{})
+
+
+
+  
+}); // end of request()
+
+</script>
+
+</head>
+  
+<body>
+  
+<!-- DIV FOR THE UI ELEMENTS -->    
+<div>
+  <input type="radio" id="radioStartPoint" name="StartEnd" checked>Start Point |||</input>
+  <input type="radio" id="radioEndPoint" name="StartEnd">End Point |||</input>
+  <button class="btn" id="btnDistance">Calc Distance</button>    
+  <button class="btn" id="btnAzimuth">Calc Azimuth</button>    
+  <button class="btn" id="btnClearAll">Clear All</button>    
+
+</div>
+	
+<!-- DIV FOR THE MAP -->
+<div id="viewDiv"></div>
+	
+</body>
+  
+</html>
