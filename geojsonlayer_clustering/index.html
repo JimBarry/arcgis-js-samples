@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+    <title>GeoJSONLayer Clustering</title>
+
+    <link
+      rel="stylesheet"
+      href="https://js.arcgis.com/4.30/esri/themes/light/main.css"
+    />
+    <script src="https://js.arcgis.com/4.30/"></script>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 98%;
+        width: 100%;
+      }
+    </style>
+
+    <script>
+      require([
+    	"esri/config",
+    	"esri/Map",
+    	"esri/views/MapView",
+    	"esri/layers/GeoJSONLayer",
+    	"esri/layers/FeatureLayer",
+		"esri/layers/support/FeatureReductionCluster",
+		"esri/symbols/TextSymbol",
+		"esri/layers/support/LabelClass",
+		"esri/renderers/SimpleRenderer",
+		"esri/symbols/SimpleMarkerSymbol",
+		"esri/widgets/LayerList",
+		"esri/widgets/Legend",
+		"esri/PopupTemplate",
+		"esri/rest/support/Query"
+		
+      ], function(esriConfig, Map, MapView, GeoJSONLayer, FeatureLayer, 
+	        FeatureReductionCluster, TextSymbol, LabelClass, 
+			SimpleRenderer, SimpleMarkerSymbol, LayerList, 
+			Legend, PopupTemplate, Query) {
+        
+	// Globals
+	var str5percent = "OBJECTID < 3000";
+	
+	// API Key 
+    esriConfig.apiKey = "AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL";
+		
+	// map
+    var map = new Map({
+      basemap: "arcgis/dark-gray"
+      //basemap: "osm"
+    });
+	
+    var mapView = new MapView({
+      container: "viewDiv",
+      map: map,
+      zoom: 11,
+      center: [-73.98, 40.67] 
+    });
+
+        // popup templates
+
+    popupLayer = {
+      title: "Fiber Info",
+      content: [{
+        type: "fields",
+        fieldInfos: [{
+            fieldName: "Incident Address",
+            label: "Address"
+          },
+          {
+            fieldName: "Status",
+            label: "Status"
+          },
+          {
+            fieldName: "Created Date",
+            label: "Date Reported"
+          }
+        ]
+      }]
+    }; 
+		
+	popupCluster = {
+	  title: "Cluster summary",
+	  content: [
+		{
+		  type: "fields",
+		  fieldInfos: [
+			{
+			  fieldName: "cluster_count",
+			  label: "Cluster count",
+			},
+		  ],
+		},
+	  ],
+	}
+        
+	//symbology
+	
+	var smsRed = new SimpleMarkerSymbol({
+	  style: "circle",
+	  color: "red",
+	  size: "5px",
+	  outline: null
+	});
+	
+	var smsGreen = new SimpleMarkerSymbol({
+	  style: "circle",
+	  color: "green",
+	  size: "5px",
+	  outline: null
+	});		
+	
+	var smsBlue = new SimpleMarkerSymbol({
+	  style: "circle",
+	  color: "blue",
+	  size: "5px",
+	  outline: null
+	});
+		
+	var srRed = new SimpleRenderer({
+	  symbol: smsRed
+	});
+	
+	var srGreen = new SimpleRenderer({
+	  symbol: smsGreen
+	});		
+	
+	var srBlue = new SimpleRenderer({
+	  symbol: smsBlue
+	});        
+	
+	var tsym = new TextSymbol({
+	  color: "white",
+          font: {size: "8px"}		  
+	});
+		
+	var lc = new LabelClass({
+	  sym: tsym,
+	  labelExpressionInfo: {expression: "$feature.cluster_count"},
+	  deconflictionStrategy: "none",
+	  labelPlacement: "center-center",		  
+	});
+        
+    var frc = new FeatureReductionCluster({
+	  clusterRadius: 100,
+	  popupTemplate: popupCluster,
+	  popupEnabled: true,
+	  labelingInfo: [lc]	  
+	});
+
+    // layers
+		
+	var flFibers = new FeatureLayer({
+	  url: "https://services5.arcgis.com/LGTJWfnE6CJdd5tX/arcgis/rest/services/NYC_MTA_BUS_ROUTES/FeatureServer/2",
+	  title: 'Fibers',
+	  visible: false
+	});		
+	map.add(flFibers);
+	
+    var gjlAug1 = new GeoJSONLayer({
+	  url: "https://jimbarry.github.io/json-files/Aug1_311_gj.geojson",
+	  title: "ONT",
+	  renderer: srRed,
+ 	  featureReduction: frc,
+	  popupTemplate: popupLayer,
+	  definitionExpression: str5percent
+    });
+    map.add(gjlAug1);
+	
+    var gjlAug2 = new GeoJSONLayer({
+	  url: "https://jimbarry.github.io/json-files/Aug2_311_gj.geojson",
+	  title: "OLT",
+	  renderer: srGreen,
+      featureReduction: frc,
+	  popupTemplate: popupLayer,		  
+	  definitionExpression: str5percent
+    });
+    map.add(gjlAug2);
+	
+    var gjlAug3 = new GeoJSONLayer({
+	  url: "https://jimbarry.github.io/json-files/Aug3_311_gj.geojson",
+	  title: "RG",
+	  renderer: srBlue,
+      featureReduction: frc,
+	  popupTemplate: popupLayer,
+	  definitionExpression: str5percent
+    });
+    map.add(gjlAug3);
+		
+	// UI functions
+		
+	function toggleHealthy(){
+	
+	  if(chkToggleHealthy.checked == true){
+        gjlAug1.definitionExpression = str5percent;
+        gjlAug2.definitionExpression = str5percent;
+        gjlAug3.definitionExpression = str5percent;
+	  } else {
+        gjlAug1.definitionExpression = "";
+        gjlAug2.definitionExpression = "";
+        gjlAug3.definitionExpression = "";
+	  }
+	  
+	} // end of function toggleHealthy()
+		
+	function countFeatures(){
+	
+	  var strQuery = "1=1";
+	  if (chkToggleHealthy.checked) {
+	    strQuery = str5percent;
+	  }	
+	  
+      var query = new Query();
+      query.where = strQuery; 
+      var countTotal = 0;
+	  
+      gjlAug1.queryFeatureCount(query).then(function(result) {
+        countTotal = countTotal + result;
+		gjlAug2.queryFeatureCount(query).then(function(result) {
+          countTotal = countTotal + result;
+		  gjlAug3.queryFeatureCount(query).then(function(result) {
+            countTotal = countTotal + result;
+			alert("Total feature count:  " + countTotal.toString());
+		  });	
+        });  
+      });
+	  
+    } // end of function btnFeatureCount()
+		
+	// UI elements
+		
+	var widgetLayerList = new LayerList({
+	  view: mapView
+	});
+	mapView.ui.add(widgetLayerList, {position: 'bottom-left'});
+
+    var chkToggleHealthy = document.getElementById("chkToggleHealthy")
+    chkToggleHealthy.addEventListener("click", toggleHealthy);   
+         
+	var btnFeatureCount = document.getElementById("btnFeatureCount")
+    btnFeatureCount.addEventListener("click", countFeatures);   
+	
+    }); // end of require
+	
+    </script>
+  </head>
+
+  <body>
+    <div id="definitionToggle">
+	  <input type="checkbox" id="chkToggleHealthy" checked>
+	  <label for="chkToggleHealthy">Hide Healthy Systems</label>
+	  <button type="button" id="btnFeatureCount">Count</button>
+	</div>
+    <div id="viewDiv"></div>
+  </body>
+</html>
