@@ -34,216 +34,211 @@
     </style>
 
     <script>
-      require([
-        "esri/config",
-        "esri/Map",
-        "esri/views/MapView",
-        "esri/layers/GeoJSONLayer",
-        "esri/layers/FeatureLayer",
-        "esri/layers/support/FeatureReductionCluster",
-        "esri/symbols/TextSymbol",
-        "esri/layers/support/LabelClass",
-        "esri/renderers/SimpleRenderer",
-        "esri/symbols/SimpleMarkerSymbol",
-        "esri/widgets/LayerList",
-        "esri/PopupTemplate",
-        "esri/rest/support/Query"
+require([
+  "esri/config",
+  "esri/Map",
+  "esri/views/MapView",
+  "esri/layers/GeoJSONLayer",
+  "esri/layers/FeatureLayer",
+  "esri/layers/support/FeatureReductionCluster",
+  "esri/symbols/TextSymbol",
+  "esri/layers/support/LabelClass",
+  "esri/renderers/SimpleRenderer",
+  "esri/symbols/SimpleMarkerSymbol",
+  "esri/widgets/LayerList",
+  "esri/PopupTemplate",
+  "esri/rest/support/Query"
 
-      ], function(esriConfig, Map, MapView, GeoJSONLayer, FeatureLayer,
-        FeatureReductionCluster, TextSymbol, LabelClass, SimpleRenderer, 
-		SimpleMarkerSymbol, LayerList, PopupTemplate, Query) {
+], function(esriConfig, Map, MapView, GeoJSONLayer, FeatureLayer,
+  FeatureReductionCluster, TextSymbol, LabelClass, SimpleRenderer,
+  SimpleMarkerSymbol, LayerList, PopupTemplate, Query) {
 
-        // Globals
+  // Globals
 
-		var strQueryAll = "1=1";
-		var strQueryHealthy = "OBJECTID < 3001";
+  var strQueryAll = "1=1";
+  var strQueryHealthy = "OBJECTID < 3001";
 
-        // API Key 
+  // API Key 
 
-        esriConfig.apiKey = "AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL";
+  esriConfig.apiKey = "AAPK3dbcd91d41ea44278c784dafaf7f77f4aRIhgE9q9TMkJq6EiOxx-QN8-q3X0OBh44FGQMvpHk_fyQflN3_Ikttnn5fu5SUL";
 
-        // map and mapview
+  // map and mapview
 
-        var map = new Map({
-          basemap: "arcgis/dark-gray"
-        });
+  var map = new Map({
+    basemap: "arcgis/dark-gray"
+  });
 
-        var mapView = new MapView({
-          container: "viewDiv",
-          map: map,
-          zoom: 11,
-          center: [-73.98, 40.67]
-        });
+  var mapView = new MapView({
+    container: "viewDiv",
+    map: map,
+    zoom: 11,
+    center: [-73.98, 40.67]
+  });
 
-        // popup templates
+  // popup templates
 
-        popupLayer = {
-          title: "Fiber Info",
-          content: [{
-            type: "fields",
-            fieldInfos: [{
-                fieldName: "Incident Address",
-                label: "Address"
-              },
-              {
-                fieldName: "Status",
-                label: "Status"
-              },
-              {
-                fieldName: "Created Date",
-                label: "Date Reported"
-              }
-            ]
-          }]
-        }; 
-		
-		popupCluster = {
-		  title: "Cluster summary",
-		  content: [
-			{
-			  type: "fields",
-			  fieldInfos: [
-				{
-				  fieldName: "cluster_count",
-				  label: "Cluster count",
-				},
-			  ],
-			},
-		  ],
-		}
+  popupLayer = {
+    title: "Fiber Info",
+    content: [{
+      type: "fields",
+      fieldInfos: [{
+          fieldName: "Incident Address",
+          label: "Address"
+        },
+        {
+          fieldName: "Status",
+          label: "Status"
+        },
+        {
+          fieldName: "Created Date",
+          label: "Date Reported"
+        }
+      ]
+    }]
+  };
 
-        //symbology
+  popupCluster = {
+    title: "Cluster summary",
+    content: [{
+      type: "fields",
+      fieldInfos: [{
+        fieldName: "cluster_count",
+        label: "Cluster count",
+      }, ],
+    }, ],
+  }
 
-        var smsRed = new SimpleMarkerSymbol({
-          style: "circle",
-          color: "red",
-          size: "6px",
-          outline: null
-        });
+  //symbology
 
-        var smsGreen = new SimpleMarkerSymbol({
-          style: "circle",
-          color: "green",
-          size: "6px",
-          outline: null
-        });
+  var smsRed = new SimpleMarkerSymbol({
+    style: "circle",
+    color: "red",
+    size: "6px",
+    outline: null
+  });
 
-        var srRed = new SimpleRenderer({
-          symbol: smsRed
-        });
+  var smsGreen = new SimpleMarkerSymbol({
+    style: "circle",
+    color: "green",
+    size: "6px",
+    outline: null
+  });
 
-        var srGreen = new SimpleRenderer({
-          symbol: smsGreen
-        });
+  var srRed = new SimpleRenderer({
+    symbol: smsRed
+  });
 
-        var tsym = new TextSymbol({
-          color: "white",
-          font: {
-            size: "8px"
-          }
-        });
+  var srGreen = new SimpleRenderer({
+    symbol: smsGreen
+  });
 
-        var lc = new LabelClass({
-          sym: tsym,
-          labelExpressionInfo: {
-            expression: "$feature.cluster_count"
-          },
-          deconflictionStrategy: "none",
-          labelPlacement: "center-center",
-        });
+  var tsym = new TextSymbol({
+    color: "white",
+    font: {
+      size: "8px"
+    }
+  });
 
-        var frc = new FeatureReductionCluster({
-          clusterRadius: 100,
-          popupTemplate: popupCluster,
-          popupEnabled: true,
-          labelingInfo: [lc]
-        });
+  var lc = new LabelClass({
+    sym: tsym,
+    labelExpressionInfo: {
+      expression: "$feature.cluster_count"
+    },
+    deconflictionStrategy: "none",
+    labelPlacement: "center-center",
+  });
 
-        // layers
+  var frc = new FeatureReductionCluster({
+    clusterRadius: 100,
+    popupTemplate: popupCluster,
+    popupEnabled: true,
+    labelingInfo: [lc]
+  });
 
-        var gjl = new GeoJSONLayer({
-          url: "https://jimbarry.github.io/json-files/Aug1_311_gj.geojson",
-          title: "GeoJSONLayer",
-          renderer: srRed,
-		  definitionExpression: strQueryAll,
-          featureReduction: frc,
-          popupTemplate: popupLayer
-        });
-        map.add(gjl);
+  // layers
 
-        var fl = new FeatureLayer({
-          url: "https://services9.arcgis.com/hsPsr2XddCBblVhb/arcgis/rest/services/Aug2_311/FeatureServer/0",
-          title: "FeatureLayer",
-          renderer: srGreen,
-		  definitionExpression: strQueryAll,
-          featureReduction: frc,
-          popupTemplate: popupLayer
-        });
-        map.add(fl);
+  var gjl = new GeoJSONLayer({
+    url: "https://jimbarry.github.io/json-files/Aug1_311_gj.geojson",
+    title: "GeoJSONLayer",
+    renderer: srRed,
+    definitionExpression: strQueryAll,
+    featureReduction: frc,
+    popupTemplate: popupLayer
+  });
+  map.add(gjl);
 
-        // UI functions
+  var fl = new FeatureLayer({
+    url: "https://services9.arcgis.com/hsPsr2XddCBblVhb/arcgis/rest/services/Aug2_311/FeatureServer/0",
+    title: "FeatureLayer",
+    renderer: srGreen,
+    definitionExpression: strQueryAll,
+    featureReduction: frc,
+    popupTemplate: popupLayer
+  });
+  map.add(fl);
 
-        function toggleHealthy() {
-		
-          if (chkToggleHealthy.checked == true) {
-            gjl.definitionExpression = strQueryHealthy;
-            fl.definitionExpression = strQueryHealthy;
-          } else {
-            gjl.definitionExpression = strQueryAll;
-            fl.definitionExpression = strQueryAll;
-          }
+  // UI functions
 
-		  countFeatures();
-		  
-        } // end of function toggleHealthy()
-		
-		function countFeatures(){
-		
-		  var query = new Query();
-		  
-		  if (chkToggleHealthy.checked == true) {
-		    query.where = strQueryHealthy;
-			strCheckboxLabel = "Showing Only Healthy Systems, Count: ";
-		  } else {
-		    query.where = strQueryAll;
-			strCheckboxLabel = "Showing All Systems, Count: ";
-		  }
+  function toggleHealthy() {
 
-          var countTotal = 0;
+    if (chkToggleHealthy.checked == true) {
+      gjl.definitionExpression = strQueryHealthy;
+      fl.definitionExpression = strQueryHealthy;
+    } else {
+      gjl.definitionExpression = strQueryAll;
+      fl.definitionExpression = strQueryAll;
+    }
 
-          gjl.queryFeatureCount(query).then(function(result) {
-            countTotal = countTotal + result;
-            fl.queryFeatureCount(query).then(function(result) {
-              countTotal = countTotal + result;
-			  lblCheckbox.textContent = strCheckboxLabel + countTotal.toString();
-            });
-          });
-		
-		} // end of function countFeatures()
+    countFeatures();
 
-        // UI elements
+  } // end of function toggleHealthy()
 
-        var widgetLayerList = new LayerList({
-          view: mapView
-        });
-        mapView.ui.add(widgetLayerList, {
-          position: 'bottom-left'
-        });
+  function countFeatures() {
 
-        var chkToggleHealthy = document.getElementById("chkToggleHealthy")
-        chkToggleHealthy.addEventListener("click", toggleHealthy);
-		
-		var lblCheckbox = document.getElementById("lblCheckbox");
+    var query = new Query();
 
-        // after mapview is fully loaded...
-		
-		mapView.when(() => {
-		  //display the number of features to the user
-		  countFeatures(); 
-		});
-		
-      }); // end of require
-	
+    if (chkToggleHealthy.checked == true) {
+      query.where = strQueryHealthy;
+      strCheckboxLabel = "Showing Only Healthy Systems, Count: ";
+    } else {
+      query.where = strQueryAll;
+      strCheckboxLabel = "Showing All Systems, Count: ";
+    }
+
+    var countTotal = 0;
+
+    gjl.queryFeatureCount(query).then(function(result) {
+      countTotal = countTotal + result;
+      fl.queryFeatureCount(query).then(function(result) {
+        countTotal = countTotal + result;
+        lblCheckbox.textContent = strCheckboxLabel + countTotal.toString();
+      });
+    });
+
+  } // end of function countFeatures()
+
+  // UI elements
+
+  var widgetLayerList = new LayerList({
+    view: mapView
+  });
+  mapView.ui.add(widgetLayerList, {
+    position: 'bottom-left'
+  });
+
+  var chkToggleHealthy = document.getElementById("chkToggleHealthy")
+  chkToggleHealthy.addEventListener("click", toggleHealthy);
+
+  var lblCheckbox = document.getElementById("lblCheckbox");
+
+  // after mapview is fully loaded...
+
+  mapView.when(() => {
+    //display the number of features to the user
+    countFeatures();
+  });
+
+}); // end of require	
     </script>
   </head>
 
